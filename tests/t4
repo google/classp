@@ -1,0 +1,13 @@
+class A {
+  %parseable;
+  optional int x;
+  sample('x 1 y 2', '(B x:1 y:2)');
+}
+class B: A {
+  optional int y;
+  syntax ('x' x 'y' y);
+}
+class C: A {
+  optional int z;
+  syntax ('x' x 'z' z);
+}

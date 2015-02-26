@@ -1,0 +1,91 @@
+class Expression {}
+
+class Variable: Expression {
+  identrifier id;
+  syntax(id);
+}
+
+class IntegerLiteral: Expression {
+  int val;
+  syntax(val);
+}
+
+class CaseExpression: Expression {
+  Expression testExpr default true;
+  Expression conditions[];
+  Expression results[];
+  Expression elseResult syntax('else' elseResult|);
+  syntax('case' (testExpr|) ('when' conditions 'then' results*) elseResult);
+}
+
+class Invocation: Expression {
+  Expression arg1;
+  optional Expression arg2;
+  optional Expression arg2;
+}
+
+class OrOp: Invocation {
+  syntax(arg1 'or' arg2) %left 1;
+}
+
+class AndOp: Invocation {
+  syntax(arg1 'and' arg2) %left 2;
+}
+
+class NotOp: Invocation {
+  syntax('not' arg1) %left 3;
+}
+
+class EqOp: Invocation {
+  syntax(arg1 '=' arg2) %nassoc 4;
+}
+
+class NeOp: Invocation {
+  syntax(arg1 '!=' arg2) %nassoc 4;
+}
+
+class LtOp: Invocation {
+  syntax(arg1 '<' arg2) %nassoc 4;
+}
+
+class LeOp: Invocation {
+  syntax(arg1 '<=' arg2) %nassoc 4;
+}
+
+class GtOp: Invocation {
+  syntax(arg1 '>' arg2) %nassoc 4;
+}
+
+class GeOp: Invocation {
+  syntax(arg1 '>=' arg2) %nassoc 4;
+}
+
+class BetweenOp: Invocation {
+  syntax(arg1 'between' arg2 'and' arg3) %nassoc 4;
+}
+
+class PlusOp: Invocation {
+  syntax(arg1 '+' arg2) %left 5;
+}
+
+class MinusOp: Invocation {
+  syntax(arg1 '-' arg2) %left 5;
+}
+
+class TimesOp: Invocation {
+  syntax(arg1 '*' arg2) %left 6;
+}
+
+class DivideOp: Invocation {
+  syntax(arg1 '/' arg2) %left 6;
+}
+
+class NegateOp: Invocation {
+  syntax('-' arg1) %left 7;
+}
+
+class FunctionCall: Expression {
+  identifier functionName;
+  Expression args[];
+  syntax(functionName '(' (args*',') ')');
+}

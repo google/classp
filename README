@@ -1,0 +1,14 @@
+This directory contains an implementation of Classp. Classp is a language for
+declaring abstract syntax trees (ASTs) with a special formatting language that
+automatically creates a formatter and parser for the AST. The language is
+documented in the docs subdirectory.
+
+The source code is in the src subdirectory. It builds with Bison 3.02 or later,
+flex lex 2.5.39, and g++ 4.8.2. Cd to the directory and type
+
+  make classp
+
+This will create all intermediate and object files as well as the executable,
+classp, in the srce directory. To run tests type
+
+  make tests

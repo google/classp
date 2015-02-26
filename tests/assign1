@@ -1,0 +1,28 @@
+class B {
+  bool b;
+  syntax(b{true->'t'|false->'f'});
+}
+class I {
+  int i;
+  syntax(i{1->'one'|2->'two'});
+}
+class S {
+  string s;
+  syntax(s{'1'->'one'|'2'->'two'});
+}
+
+class B2 {
+ bool b;
+ syntax(b{true->'t'|false->});
+}
+
+class D {
+  %parseable;
+  B b;
+  I i;
+  S s;
+  B2 b2;
+  syntax('B' b 'I' i 'S' s 'B2' b2 'done');
+  sample('B t I two S one B2 done', '(D b:(B b:1) i:(I i:2) s:(S s:1) b2:(B2 b:0))');
+  sample('B f I one S two B2 t done', '(D b:(B b:0) i:(I i:1) s:(S s:2) b2:(B2 b:1))');
+}

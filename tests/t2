@@ -1,0 +1,16 @@
+class A {
+  optional int x;
+  syntax ( '(' self ')' );
+  syntax ( '[' self ']' );
+  syntax ( 'just' x );
+}
+class B: A {
+  optional bool y;
+  syntax ('x' x 'y' y);
+  syntax ( 'bar' self );
+}
+class C: A {
+  optional int z;
+  syntax ('x' x @@'z'@@ z);
+}
+

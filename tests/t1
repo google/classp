@@ -1,0 +1,19 @@
+class A {
+  optional int x;
+}
+class B: A {
+  optional int y;
+  syntax ('x' x 'y' y);
+}
+class C: A {
+  optional int z;
+  syntax ('x' x 'z' z);
+}
+class D {
+  A a;
+  B b;
+  C c;
+  syntax ('a' a 'b' b 'c' c);
+  %parseable;
+  sample ('a x 2 y 3 b x 4 y 5 c x 6 z 7');
+}

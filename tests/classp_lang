@@ -1,0 +1,75 @@
+@@'enum Associativity{AssocLeft, AssocRight, AssocNassoc};'@@
+class Declarations {
+  %parseable;
+  ClassDeclaration decl[];
+  syntax ( decl* );
+  sample("class A {%parseable;int n;syntax ('+' n);sample ('+ 3');}", print);
+}
+
+class ClassDeclaration {
+  identifier class_name;
+  optional identifier parent_name;
+  AttributeDeclaration attributes[];
+  optional SyntaxDeclaration syntax_decl;
+  bool parseable default false syntax(self{true->'%parseable' ';'});
+  syntax ('class' class_name (':' parent_name|)
+          '{' ((attributes|syntax_decl|parseable)*) '}');
+}
+
+class AttributeDeclaration {
+  bool is_optional default false syntax(self{true->'optional'});
+  identifier attribute_name;
+  identifier type_name;
+  optional Expression default_value syntax('default' self|);
+  optional SyntaxDeclaration syntax_decl syntax('syntax' '(' self ')'|);
+  syntax(is_optional type_name attribute_name default_value syntax_decl ';');
+}
+
+class SyntaxDeclaration {
+  Pattern pattern;
+  optional Associativity assoc syntax(self{AssocLeft->'left'
+                                          |AssocRight->'right'
+                                          |AssocNassoc->'nassoc'
+                                          |AssocLeft->'assoc'});
+  optional int precedence;
+  syntax('syntax' '(' pattern ')' ('%' assoc precedence|));
+}
+
+class Pattern {
+  syntax('(' self ')');
+}
+
+class Alternation: Pattern {
+  Pattern alternates[];
+  syntax(alternates*'|') %assoc 1;
+}
+
+class Iterator: Pattern {
+  Pattern pattern1;
+  Pattern pattern2;
+}
+
+class Iterator0OrMore:Iterator {
+  syntax(pattern1 '*' pattern2) %nassoc 2;
+}
+
+class Iterator1OrMore:Iterator {
+  syntax(pattern1 '+' pattern2) %nassoc 2;
+}
+
+class PatternSequence: Pattern {
+  Pattern list[];
+  syntax(list*) %assoc 3;
+}
+
+class CasePattern: Pattern {
+  identifier attribute;
+  Pattern patterns[];
+  Expression exprs[];
+  syntax(attribute '{' (exprs '->' patterns + '|') '}');
+}
+
+class Expression {
+  identifier id;
+  syntax(id);
+}

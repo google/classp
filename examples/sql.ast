@@ -1,0 +1,60 @@
+class SelectClause {
+  bool {
+    true syntax "DISTINCT",
+    false syntax "";
+  } distinct;
+  TaggedExpression projection[] syntax "$0*, ";
+  optional TaggedTableExpression from[] syntax "FROM {$0*, }";
+  optional Expression where syntax "WHERE $0";
+  optional Expression group_by[] syntax "GROUP BY {$0*, }";
+  optional Expression having syntax "HAVING $0";
+  optional OrderByList order_by order_expr[] syntax "ORDER BY {$0*, }";
+  
+  syntax "SELECT $distinct $projection $from $where $group_by $having $order_by";
+};
+
+class ExpressionTag {
+  Identifier tag;
+  syntax "[AS ]$tag";
+};
+
+class TaggedExpression extends Expression {
+  optional Identifier tag syntax " [AS ]$0";
+  syntax "$expr$tag";
+};
+
+class TaggedTableExpression {
+  TableExpression expr;
+  optional Identifier tag syntax " [AS ]$0" nassoc 5;
+  syntax "$expr$tag";
+};
+
+class TableExpression {};
+
+class BaseTableExpr extends TableExpression {
+  Identifier name;
+};
+
+class JoinExpression extends TableExpression {
+  TableExpression table1;
+  TableExpression table2;
+  optional Expression on;
+  optional IdentifierList using_list;
+};
+
+class CrossJoinExpression extends JoinExpression {
+  syntax "$table1 CROSS[ JOIN] $table2" left 10;
+};
+
+class InnerJoinExpression extends JoinExpression {
+  syntax "$table1 [INNER ]JOIN $table2 (ON $on|USING {$using_list*, }" left 10;
+};
+
+class OuterJoinExpression extends JoinExpression {
+  enum OuterJoinType {
+    left syntax "LEFT",
+    right syntax "RIGHT",
+    full syntax "FULL",
+  } join_type;
+  Syntax("$table1 $join_type [OUTER ]JOIN $table2 (ON $on"|USING {$using_list*, }") left 10;
+};

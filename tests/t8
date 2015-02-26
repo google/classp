@@ -1,0 +1,25 @@
+class A {
+  int a1;
+  optional int a2;
+  int a3 default 0;
+  int a4[];
+  %parseable;
+}
+class B: A {
+  int b1;
+  optional int b2;
+  int b3 default 0;
+  int b4[];
+}
+class C: B {
+  int c1;
+  optional int c2;
+  int c3 default 0;
+  int c4[];
+  optional int c5;
+  int c6 default 0;
+  int c7[];
+  int c8 default 0;
+  int c9[];
+  syntax(a1 a2 a3 a4 b1 b2 b3 b4 c1 c2 c3 c4 (c5|) (c6|c7) ((c8|c9)*)) %left 1;
+}

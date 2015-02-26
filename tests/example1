@@ -1,0 +1,12 @@
+class Expression {
+  %parseable;
+}
+
+class FunctionCall: Expression {
+  identifier functionName;
+  Expression argList[];
+  syntax(functionName '(' (argList*',') ')');
+  sample('f()', '(FunctionCall functionName:f argList:[])');
+  sample('f(a())', '(FunctionCall functionName:f argList:[(FunctionCall functionName:a argList:[])])');
+  sample('f(a(),b(x()),c())', '(FunctionCall functionName:f argList:[(FunctionCall functionName:a argList:[]), (FunctionCall functionName:b argList:[(FunctionCall functionName:x argList:[])]), (FunctionCall functionName:c argList:[])])');
+}

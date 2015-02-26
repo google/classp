@@ -1,0 +1,19 @@
+class A {
+  optional int x;
+  optional int y;
+  syntax((x|y)*);
+}
+class B {
+  int a1[];
+  optional int x;
+  syntax((a1|x)+);
+}
+class C {
+  A a1[];
+  A a2[];
+  A a3[];
+  optional int x;
+  optional int y;
+  optional int z;
+  syntax((a1 '+' a2|x '*' y| a1 '<' z)+',');
+}

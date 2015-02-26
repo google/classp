@@ -1,0 +1,14 @@
+class Query {
+  %parseable;
+  Expression select_list[] syntax(self+',');
+  Expression from_list[] syntax('FROM' (self+',')|);
+  optional Expression where_clause syntax('WHERE' self|);
+  Expression group_by[] syntax(self+',');
+  syntax('SELECT' select_list from_list where_clause ('GROUP' 'BY' group_by|));
+  sample('SELECT a, b FROM t1, t2', '(Query select_list:[(Expression id:a), (Expression id:b)] from_list:[(Expression id:t1), (Expression id:t2)]where_clause[not defined] group_by:[])');
+}
+
+class Expression {
+  identifier id syntax(self);
+  syntax(id);
+}

@@ -1,0 +1,176 @@
+** BASIC USEABILITY
+
+* DONE (dgudeman) Parsing problem:
+class A {
+  int a[];
+  syntax('!' a*);
+}
+We want something like
+A : {...}
+  | '!' TOK_INTEGER {...}
+  | A '!' TOK_INTEGER {...}
+
+* Write tests for error cases, and improve error messages.
+
+* More comprehensive test for non-error cases.
+
+* DONE (dgudeman) Get alternation working
+
+* Currently there is no storage management of the parse tree. Add ownership of
+pointers and freeing them when possible.
+
+* Get namespaces working. See ParserBase::namespace_tag.
+
+* Figure out the story for lexical rules. How can you specify things like
+whitespace definition and case-insensitivity in one place to apply to all rules?
+How do you then write lexical rules that ignore these specifications? See
+(http://tutor.rascal-mpl.org/Rascal/Concepts/Concepts.html) for another sytem
+that does this.
+
+* ???Inheritance matching: name an inherited type instead of an attribute and it
+expands the inherited syntax in place. ??? Find useful examples first. I'm no
+longer sure that multiple inheritance of syntax is a good idea.
+
+* DONE (dgudeman) Array matching is currently restricted to
+(<attribute> * <string>). Generalize
+to (<re> <attribute> <re> * <re>) where <re> matches any pattern that does not
+have an attribute. Also allow (<re> <alt> <re> * <re>) where <alt> is an
+alternation. For example: ((extern_flag | static_flag | register_flag)*) to
+parse a sequence of flags.
+
+* DONE (dgudeman) Implement assignment patterns:
+  <attr> '{' (<re> '->' <value>*|) '}'
+
+* We need to deal with passing a string as the value of a production. We could
+either pass pointers to string and deal with allocation, or we could define our
+own data types to enable it.
+
+* DONE (dgudeman) Make it work with only standard tools (not dependent on
+google3).
+
+* Get the output compiling and executing. Produce a simple API for the user.
+See ParserBase::directory.
+
+* Seperate class defs into .h and .cc files.
+
+* DONE (dgudeman) Get inheritance working:
+class A {
+  int x;
+  syntax('(' $0 ')'); // parentheses syntax
+}
+class B extends A {
+  int y;
+  syntax( 'first' x ', second' y );
+}
+1. DONE Every class needs to know what its child classes are.
+2. DONE The rule for a class A with children is an alternation of the syntax for A
+   and the nonterminals for all of its children. The actual class type produced
+   is usually a child type such as B rather than A.
+3. DONE Generalize this alternation
+   concept so that a single class can have multiple
+   class syntaxes and they become alternations.
+4. DONE A '$$' in a class syntax causes a recursive match of the class, but does not
+   create a new object. For example, if you match the parentheses syntax for A
+   then it recursively matches A, but only one A object is created.
+
+*  Right now it is an unchecked error to have more than one regular (that is,
+not '$$') syntaxes for a class. 
+
+* DONE Precedence and associativity(dgudeman)
+These are associated with rules, not symbols, so they have to be implemented by
+structuring the grammar rules insead of using directives like %left. For example
+class Operation extends Expression {
+  class Expression args[];
+}
+class Addition extends Operation {
+  syntax (args[1] '+' args[2], left 6);
+}
+class Multiplication extends Operation {
+  syntax (args[1] '*' args[2], left 4);
+}
+
+** FEATURES AND PERFORMANCE
+
+* Add an enum for class types, and isa and asa functions for each class.
+
+* Multiple syntaxes. Write a syntax for language A and one for language B, and
+you automatically get an A->B translator and a B->A translator. For example:
+class A {
+  syntax sql("...") c("...");
+}
+Multiple syntaxes may also be needed for a single language. Suppose there is a
+class C that is parsed entirely differently in two different contexts A and B,
+but it still makes sense to make it a single class in the AST. Then we can do it
+like this:
+class C {
+ ...
+ syntax A_context {...}
+ syntax B_context {...}
+}
+class A {
+  ...
+  C c
+  syntax(... A_context:c ...)
+}
+class B {
+  ...
+  C c
+  syntax(... B_context:c ...)
+}
+
+* Attribute evaluation.
+
+* Cut operator: (<matcher> ! <re>). If <matcher> ends in an iterator (+ or *)
+then it is normally greedy, but this will cut it off before any expression that
+matches <re>.
+
+* Cooperation operator: (<matcher1> & <matcher2>). Matches only if it both
+<matcher1> and <matcher2> match.
+
+* Output for other parser generators and languages. The parser generator has to
+handle left recursion so not JavaCC. I also don't know if we are going to need
+other features that can't be parsed by LR or LL parsers so it would be best to
+look into general parsers (GLR, GLL, Earley, etc.) like Elkhound. Note that
+bison has a GLR mode if we need it.
+
+* Generate our own GLL parser and eliminate the requirement for a separate
+parser generator.
+
+* Expand double-quotes into parse expressions. Eg:
+class Addition {
+  Expression args[];
+  syntax("$1 + $2");  // equivalent to syntax ( args[1] '+' args[2])
+}
+
+* Implement syntax elements attached to attributes. The semantics are as follows
+class A {
+  int x syntax(... $0 ...); // attribute syntax for x
+  syntax(... x ...);        // class syntax
+}
+When you see x in the class syntax or in any other attribute syntax, then it is
+replaced by the attribute syntax for x. The $0 in the attribute syntax for x is
+replaced by a parser for x.
+
+* DONE (dgudeman) Extend array syntax so that you can parse
+syntax('prefix' array 'suffix'*'separator);
+
+* If there are two more places where an array of T is parsed with the same
+prefix, suffix, and separator, then only generate one production for all of
+them.
+
+** DOCUMENTATION
+
+* internal web site
+
+* user manual
+
+** SELF PARSING
+We should get to a self-parsing situation as soon as possible so we don't have
+to maintain the bison code. Still needed:
+
+* DONE precedence and associativity
+
+* DONE enums
+
+* DONE An alternation that includes array attributes. The array attribute may appear
+multiple times, adding to the appropriate array.

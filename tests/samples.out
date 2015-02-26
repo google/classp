@@ -1,0 +1,34 @@
+parsing '+ 3':
+SUCCEEDS
+parsing '+ 3':
+SUCCEEDS
+parsing '+ 3':
+SUCCEEDS: ERROR[expected fail]
+parsing '+ 3':
+SUCCEEDS: (A n:3)
+parsing '+ 3':
+SUCCEEDS
+parsing '+ 3':
+SUCCEEDS: ERROR[no match:
+  expected-> testing
+  actual->   (A n:3)
+  ]
+parsing '- 3':
+-FAILS: ERROR[expected success]
+  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+1 errors.
+parsing '- 3':
+-FAILS: ERROR[expected success]
+  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+1 errors.
+parsing '- 3':
+-FAILS [as expected]
+parsing '- 3':
+-FAILS: ERROR[expected success]
+  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+1 errors.
+parsing '- 3':
+-FAILS: ERROR[expected testing]
+  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+1 errors.
+Errors: 6

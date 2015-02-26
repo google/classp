@@ -1,0 +1,33 @@
+class ProcedureDecl {
+  %parseable;
+  identifier name;
+  Declaration arguments[];
+  Declaration locals[];
+  Statement statements[];
+  syntax(
+    "procedure" name "(" ( arguments * "," ) ")"
+    "declare"
+      ( locals * ";" )
+    "begin"
+      ( statements * )
+    "end");
+  sample('procedure foo (int a) declare int b begin foo(a) end',
+  '(ProcedureDecl name:foo arguments:[(Declaration type_name:int variable_name:a)] locals:[(Declaration type_name:int variable_name:b)] statements:[(Statement procedure_name:foo arguments:[a])])');
+}
+
+class Declaration {
+  identifier type_name;
+  identifier variable_name;
+  syntax( type_name variable_name );
+}
+
+class Statement {
+  identifier procedure_name;
+  identifier arguments[];
+  syntax( procedure_name "(" (arguments * "," ) ")" );
+}
+
+class Unparsed {
+  int foo;
+  syntax( foo );
+}

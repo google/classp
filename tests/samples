@@ -1,0 +1,16 @@
+class A {
+  %parseable;
+  int n;
+  syntax('+' n);
+  sample('+ 3');
+  sample('+ 3', succeed);
+  sample('+ 3', fail);
+  sample('+ 3', print);
+  sample('+ 3', '(A n:3)');
+  sample('+ 3', 'testing');
+  sample('- 3');
+  sample('- 3', succeed);
+  sample('- 3', fail);
+  sample('- 3', print);
+  sample('- 3', 'testing');
+}

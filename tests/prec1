@@ -1,0 +1,50 @@
+class A {
+  syntax('(' self ')');
+}
+
+class Bleft: A {
+  A a;
+  syntax('b' a) %left 5;
+}
+class Cleft: A {
+  A a;
+  syntax(a 'c') %left 5;
+}
+class Dleft: A {
+  A a1;
+  A a2;
+  syntax(a1 'd' a2) %left 5;
+}
+
+class Bright: A {
+  A a;
+  syntax('b' a) %right 3;
+}
+class Cright: A {
+  A a;
+  syntax(a 'c') %right 3;
+}
+class Dright: A {
+  A a1;
+  A a2;
+  syntax(a1 'd' a2) %right 3;
+}
+
+class Bnassoc: A {
+  A a;
+  syntax('b' a) %nassoc 2;
+}
+class Cnassoc: A {
+  A a;
+  syntax(a 'c') %nassoc 2;
+}
+class Dnassoc: A {
+  A a1;
+  A a2;
+  syntax(a1 'd' a2) %nassoc 2;
+}
+
+class Literal: A {
+  int val;
+  syntax(val);
+}

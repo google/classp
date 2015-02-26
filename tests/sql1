@@ -1,0 +1,57 @@
+class SelectClause {
+  // Each attribute can be given its own syntax. This is the same as putting the
+  // syntax into the main syntax for the clause, except that self is interpreted
+  // to refer to the attribute.
+  bool distinct=false syntax(self{'DISTINCT'->true|});
+  Expression projections[];
+  Tag projectionTags[];
+  TableExpression from[] syntax('FROM' (self + ',')|);
+  optional Expression where syntax (WHERE self|);
+  Expression group_by[] syntax ('GROUP BY' (self + ',')|);
+  optional Expression having syntax ('HAVING' self|);
+  OrderByList order_by order_expr[] syntax ('ORDER BY' (self + ',')|);
+
+  syntax (
+      'SELECT' distinct (projections projectionTags + ',')
+      from where group_by having order_by);
+};
+
+class Tag {
+  optional identifier id = '';
+  syntax(tag|);
+}
+
+class Expression {
+  identifier id;
+  syntax(id);
+}
+
+class TableExpression {}
+
+class BaseTableExpr extends TableExpression {
+  Identifier name;
+}
+
+class JoinExpression extends TableExpression {
+  TableExpression table1;
+  TableExpression table2;
+  optional Expression on syntax('ON' self);
+  optional identifier usingList syntax('USING' (self + ','));
+}
+
+class CrossJoinExpression extends JoinExpression {
+  syntax %left 5 (table1 CROSS[ JOIN] table2);
+}
+
+class InnerJoinExpression extends JoinExpression {
+  syntax %left 5
+      (table1 (INNER|) JOIN table2 (on|using));
+}
+
+enum OuterJoinType {left, right, full};
+
+class OuterJoinExpression extends JoinExpression {
+  OuterJoinType join_type
+      syntax(self{'LEFT'->left | 'RIGHT'->right | 'FULL'->full | ->left});
+  Syntax %left 5 (table1 join_type ('OUTER'|) 'JOIN' table2 (on|using));
+}

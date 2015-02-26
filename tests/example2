@@ -1,0 +1,29 @@
+class Expression {
+  %parseable;
+  syntax( '(' self ')' );
+  sample('1+2', '(Sum val1:(IntegerLiteral val:1) val2:(IntegerLiteral val:2))');
+  sample('1+2*(3+4)', '(Sum val1:(IntegerLiteral val:1) val2:(Product val1:(IntegerLiteral val:2) val2:(Sum val1:(IntegerLiteral val:3) val2:(IntegerLiteral val:4))))');
+}
+
+class FunctionCall: Expression {
+  identifier functionName;
+  Expression argList[];
+  syntax ( functionName '(' (argList*',') ')' );
+}
+
+class Sum: Expression {
+  Expression val1;
+  Expression val2;
+  syntax (val1 '+' val2) %left 1;
+}
+
+class Product: Expression {
+  Expression val1;
+  Expression val2;
+  syntax (val1 '*' val2) %left 2;
+}
+
+class IntegerLiteral: Expression {
+  int val;
+  syntax ( val );
+}

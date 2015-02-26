@@ -1,0 +1,280 @@
+﻿The Classp language is a language for defining an abstract syntax tree (or AST) and for defining the syntax of the AST. The class definitions look something like C++ or Java. The syntax declarations use a pattern language with some resemblance to regular expressions. An AST description is compiled by classp into C++, Bison, and Flex, and some simple tests have shown that the amount of code generated from a Classp program is nearly an order of magnitude larger than the program itself.
+
+
+We are still in the early stages of experimentation, but the difference in size between the source and the generated files, taken together with the fact that Classp does not have different places that have to be kept in sync, like the .c and .h files, or like the token declarations in yacc and the token usages in lex, this suggests that writing and maintaining a parser and formatter in Classp may actually be an order of magnitude easier than doing the same with traditional tools.
+
+
+The syntax declarations are oriented towards specifying a formatter --a way to print an AST in the associated language rather than towards specifying a parser. The formatter specification is inverted to create a parser. The resulting notation is much simpler and more logically organized than the typical grammar notations, and there is much less that has to be written.
+
+
+Here is a short example of a classp program:
+class Expression {
+  %parseable;
+}
+class Variable: Expression {
+ identifier id;
+ syntax(id);
+}
+class IntegerLiteral: Expression {
+ int val;
+ syntax(val);
+}
+Classp takes the above program, and among other things generates a .h file with some boilerplate code, a list of forward declarations, and the following:
+class Expression: public AstNode {
+ public:
+  Expression(ParseState parseState)
+      : AstNode(parseState) {
+  }
+  static Expression* parse(istream& input, ostream& errors);
+  void print(ostream& out) override {
+  }
+};
+class Variable: public Expression {
+ public:
+  Variable(ParseState parseState, const identifier*& id)
+      : Expression(parseState)
+      , id(id) {
+  }
+  void print(ostream& out) override {
+    Expression::Print();
+    out << ", id = ";
+    classpPrint(out, id);
+  }
+  void format(ostream& out, int precedence) override {
+    classpFormat(out, 0, id);
+  }
+  identifier* id = nullptr;
+};
+class IntegerLiteral: public Expression {
+ public:
+  IntegerLiteral(ParseState parseState, const int64_t& val)
+      : Expression(parseState)
+      , val(val) {
+  }
+  void print(ostream& out) override {
+    Expression::Print();
+    out << ", val = ";
+    classpPrint(out, val);
+  }
+  void format(ostream& out, int precedence) override {
+    classpFormat(out, 0, val);
+  }
+  int64_t val;
+};
+It also generates the lexer token definitions and the following Bison code (again, we are leaving out the boilerplate):
+%token TOK_IDENTIFIER         "identifier"
+%token TOK_INT64    "integer literal"
+%token TOK_STRING_LITERAL     "string literal"
+%type <Expression*> class_Expression
+%type <IntegerLiteral*> class_IntegerLiteral
+%type <Variable*> class_Variable
+%type <int64_t> TOK_INT64
+%type <string>  TOK_IDENTIFIER
+%type <string>  TOK_STRING_LITERAL
+class_Expression
+  : class_Variable { $$ = $1; }
+  | class_IntegerLiteral { $$ = $1; }
+  ;
+class_Variable
+  : TOK_IDENTIFIER {
+      $$ = new Variable(@$, $1); }
+  ;
+class_IntegerLiteral
+  : TOK_INT64 {
+      $$ = new IntegerLiteral(@$, $1); }
+  ;
+Patterns
+A pattern is an alternation of one or more alternates:
+alternation: <alternate> | <alternate> | ... | <alternate>
+An alternate is either empty or is constructed with a binary operator on sequences:
+repeat 0 or more: <sequence> * <sequence>
+repeat 1 or more: <sequence> + <sequence>
+selection: <expession> -> <sequence>
+A sequence is a list of items.
+An item is one of
+a token: <token>
+the name of an attribute: <attr>
+the self attribute:  self
+a pattern in parentheses: ( <pattern> )
+a case pattern: <attr> { <pattern> }
+A token is either a string in quotes or nothing -- the empty token which matches the empty string. It matches a fixed string in the input.
+An expression represents a value in the source language. 
+
+
+There is no “?” operator such as is often used in regular expressions to indicate an optional pattern. Instead, we just use an alternation with an empty token as the last alternate. For example:
+class WhereClause {
+  optional Expression where;
+  syntax('WHERE' where|);
+}
+This will either match the token 'WHERE' and assign the following expression to the attribute where, or it will match nothing and leave where unassigned. The optional keyword is a feature of Classp. It causes Classp to generate a boolean has_where property that can be used to check if where was parsed.
+
+
+The alternates must be distinguishable by the parser. Different parser technologies have different capacities for handling ambiguity, and class patterns can be implemented with any suitably powerful parser technology. However, one simple way to avoid ambiguity is to have each alternate begin with a different keyword. For example:
+class Marbles {
+  int blue_marbles;
+  int green_marbles;
+  int orange_marbles;
+  syntax('blue' blue_marbles
+        |'green' green_marbles
+        |'orange' orange_marbles);
+}
+An alternation expression must have an attribute in all alternates except one, otherwise it is not clear how to format the pattern. For example to format the class above, we check to see if blue_marbles has an assigned value n. If it does, then we output “blue n”. If not, then we check to see if green_marbles has a value, and so on. If there were two keywords with no attribute:
+  syntax('blue' blue_marbles
+        |'green' green_marbles
+        |'orange' orange_marbles
+        |'rock'
+        |'dice');
+then it would not be clear how to format it (although parsing would not be a problem). If none of the attributes are set, what do you output, “rock” or “dice”? There are various possible ways to handle this, but the issue needs more investigation in how the feature could be used.
+
+
+Similarly, the iterators must have at least one attribute on the left, otherwise it is not clear how many repetitions to output when formatting. Attributes are not allowed on the right. All attributes on the left must be array attributes unless inside an alternation (see below). All array attributes on the left will form parallel arrays of the same length.
+
+
+With traditional parsing technology, when working with SQL syntax there is often a certain awkwardness surrounding the tagged expressions in the SELECT list, the ORDER BY list, and elsewhere. Typically the representation of these structures involves a list of a specialized class that has no function except to represent an expression with some sort of tag. When traversing the tree, these special tag classes tend to be intrusive, requiring special handling. An alternative is to define two parallel arrays: an array of expressions and an array of corresponding tags:
+class SelectClause {
+  Expression exprs[];
+  Tag tags[];
+  syntax('SELECT' exprs (AS|) tags + ',');
+}
+This will parse a phrase
+SELECT <expr> <tag>, <expr> <tag> ,..., <expr> <tag>
+assigning each <expr> to exprs[] and each <tag> to tags[] in order.
+
+
+If the left side of an iterator is an alternation with multiple alternates, then the alternates can contain non-array attributes which are matched individually. Each of the non-array attributes can be matched at most once. The array attributes can be matched many times. Because of this, a single alternate can have multiple array attributes or multiple non-array attributes, but no alternative can have both an array and a non-array attribute. For example:
+class Tokens {
+  optional int blue_marbles;
+  optional int green_marbles;
+  optional int orange_marbles;
+  Identifier named_marbles[];
+  syntax(('blue' blue_marbles
+         |'green' green_marbles
+         |'orange' orange_marbles
+         |'named' named_marbles) * ',');
+}
+This will match any sequence of pairs “<color> <integer>” interspersed with pairs “named <identifier>” separated by commas, so long as <color> is one of blue, green, or orange, and so long as each color appears at most once. The pairs beginning with <color> assign the integer to the associated attribute. The pairs beginning with named push the identifier onto the end of named_marbles[].
+
+
+The case pattern consists of an attribute and an alternation, where each alternate is a selection. Each selection pairs a possible value of the attribute with a matching pattern: <expression>-><pattern>. The meaning is that if the attribute has the value <expression>, then output <pattern>:
+class cup {
+  int size;
+  syntax(size{4->'small'|16->'medium'|32->'large'});
+}
+This case pattern outputs a size word based on the numeric value. This conditional pattern can be inverted into a parser that assigns a numeric value based on a word. Because size is not declared optional and because there is no other way to assign it, if none of these three tokens is seen in the input during parsing, it will be a syntax error.
+
+
+To avoid the syntax error we can supply a default attribute value:
+class cup {
+  int size default 32;
+  syntax(size{4->'small'|16->'medium'|32->'large'});
+}
+Here is a real example from SQL:
+class SelectClause {
+  bool is_distinct default false;
+  ...
+  syntax('SELECT' is_distinct{true->'DISTINCT'|}...);
+}
+When formatting, the empty alternate says that if is_distinct does not have any of the listed values, then print nothing. When parsing, the empty alternate says that none of the other alternates may be in the input, and if none are found, then assign a default value if there is one. Default value attributes are similar to optional attributes in that they may or may not be parsed. In the case of a default value attribute there is no “has_” member added to the class unless it is also declared optional. Instead, it simply takes on the default value if it is not parsed.
+
+
+This notation uses “default” rather than an assignment operator for two reasons. First, we view attributes as single assignment variables; using an assignment syntax for default values might lead to the impression that the variable first gets assigned an initial value and then gets changed during parsing. Second, although it is not covered in this document, class patterns are part of a larger paradigm that involves attribute evaluation much like an attribute grammar and we use the assignment operator to assign values to to attributes that do not take their value from parsing.
+
+
+The combination of alternation, iterators, and defaults gives us a simple solution for an occasional issue in parsing: how to parse a list of disparate flags in any order but allow each of them at most once. When using a parser generator, a common solution is to write a parser that accepts duplicates and to check for duplicates after parsing. With class patterns, it can be specified in the pattern language: 
+class StorageClass {
+  bool is_extern default false;
+  bool is_static default false;
+  bool is_register default false;
+  syntax(is_extern{true->'extern'}
+        |is_static{true->'static'} 
+        |is_register{true->'register'}
+        |);
+}
+If any of the flags is repeated, it will cause a syntax error because each value can only be parsed once.
+The Classp Language
+Classp is demonstration software intended to show the viability of class patterns and to get some idea of how class patterns compare to traditional parser generators like Bison. It generates a .h file containing all of the class definitions (including inline methods for constructors, formatters, and a few other things), a .y file containing a complete Bison grammar specification for the language, and a .l file containing Flex scanner definitions to recognize the tokens that appear in the class patterns. The resulting .l file must be extended to handle other lexical items such as numeric and string literals, comments, etc.
+
+
+Classp implements a specialized language of class patterns. The advantage of this approach over the approach of adding class patterns to an existing object-oriented language is that in principle, a Classp specification could be used to generate parsers in different languages with different parser generators. However the alternative of adding class patterns to an existing object-oriented language is also under consideration.
+
+
+Although class patterns are not designed for exposition, in the following we describe Classp using class patterns in order to provide further examples. A Classp program consists of a sequence of class definitions:
+class Declarations {
+  %parseable;
+  ClassDeclaration decl[];
+  syntax(decl*);
+}
+The %parseable indicator tells us essentially that this class represents the starting production of the generated grammar. In principle, many classes could have this indicator, but currently Classp only supports a single parseable class. A class declaration contains several sorts of declaration:
+class ClassDeclaration {
+  string class_name;
+  string parent_name;
+  AttributeDeclaration attributes[];
+  optional SyntaxDeclaration syntax_decl;
+  bool parseable default false syntax(true->'%parseable' ';');
+  syntax(class_name (':' parent_name|)
+        '{' ((attributes|syntax|parseable)*) '}');
+}
+In this declaration we introduce attribute-local syntax. A syntax statement can be associated directly with an attribute such as parseable in order to make the class syntax statement more readable. The attribute-local syntax gets inserted in place of the attribute name in the main syntax. This declaration also has an example of an iterator over alternates, where two alternates are single attributes and one is an array.
+
+
+Attribute declarations are also fairly complex:
+class AttributeDeclaration {
+  bool is_optional default false
+      syntax(self{'optional'->true});
+  string attribute_name;
+  string type_name;
+  optional Expression default_value syntax('default' self|);
+  optional SyntaxDeclaration syntax_decl;
+  syntax(is_optional type_name attribute_name
+         default_value local_syntax ';');
+}
+In this declaration we see another feature of attribute-local syntax. The attribute itself can be referenced with the self keyword. In an attribute-local syntax, self refers to the attribute; in class syntax, it refers to the class. Because of the way that we used attribute-local syntax, the class syntax is just a list of the parts of a declaration in order with no other pattern syntax obscuring the form.
+
+
+We do something similar with the next declaration:
+class SyntaxDeclaration {
+  Pattern pattern;
+  optional Associativity assoc
+    syntax(self{AssocLeft->'left'
+               |AssocRight->'right'
+               |AssocNassoc->'nassoc'
+               |AssocLeft->'assoc'});
+  optional int precedence;
+  syntax('syntax' '(' pattern ')' ('%' assoc precedence|));
+}
+However, it is not as simple. We cannot reduce the association/precedence part of the pattern because it involves two attributes and cannot be expressed in attribute-local syntax. This suggests that Classp should have named patterns that can reference multiple attributes yet be substituted into the main syntax like attribute-local syntax is.
+
+
+The next few declarations give us another example of parsing expressions with precedence.
+class Pattern {
+  syntax('(' this ')');
+}
+class Alternation: Pattern {
+  Pattern alternates[];
+  syntax(alternates*'|') %assoc 0;
+}
+class Iterator: Pattern {
+  Pattern pattern1;
+  Pattern pattern2;
+}
+class Iterator0OrMore:Iterator {
+  syntax(pattern1 '*' pattern2) %nassoc 1;
+}
+class Iterator1OrMore:Iterator {
+  syntax(pattern1 '+' pattern2) %nassoc 1;
+}
+class PatternSequence: Pattern {
+  Pattern list[];
+  syntax(list*) %assoc 2;
+}
+The two iterators are made subclasses of a generic iterator class. This may be useful for tree traversals that can write a single traversal for both operators.
+
+
+Finally we have the base case which is given no precedence, indicating that it has maximum precedence:
+class AssignmentList: Pattern {
+  Identifier attribute;
+  Pattern patterns[];
+  Expression exprs[];
+  syntax(attribute '{' (patterns '->' exprs + '|') '}');
+}
+As you can see, there is a potential ambiguity here because it is not currently possible to specify the precedence of patterns and exprs with respect to the '->' symbol. If that symbol were used in either patterns or exprs then there would be an ambiguity. This ambiguity could be cleared up in a grammar by introducing extra productions but that is not possible (or at least discouraged) with class patterns. This suggests that a more complex precedence mechanism is needed.
