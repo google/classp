@@ -1,9 +1,8 @@
 /*
  * This file is a part of the Classp parser, formatter, and AST generator.
- * Author: David Gudeman
  * Description: Functions to generate the c++11 class definitions.
  *
- * Copyright 015 Google Inc.
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,7 +124,7 @@ void ParseTreeClassDecl::GenerateConstructorDeclaration(ostream& out) {
     out << ", " << attribute->declare_full_type << " "
                        << attribute->attribute_name;
   }
-  if (optional_params.size() > 0) {
+  if (has_keyword_arg) {
     out << ", AttributeMap& keyword_args";
   }
   out << ")";
@@ -183,7 +182,7 @@ void ParseTreeClassDecl::GenerateConstructorArgs(ostream& out) {
   for (auto attr : required_params) {
     out << ", " << attr->attribute_name;
   }
-  if (optional_params.size() > 0) {
+  if (has_keyword_arg) {
     out << ", keyword_args";
   }
 }

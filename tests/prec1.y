@@ -168,10 +168,12 @@ void A::printMembers(ostream& out) {
 }
 
 void A::bracketFormat(ostream& out, AstNode* self) {
-  out << " ( ";
+  out << "(";
+  out << " ";
   classpFormat(out, 0, self);
-  out << " ) ";
-  }
+  out << " ";
+  out << ")";
+}
 Bleft::Bleft(ParseState parseState, A* a)
     : A(parseState)
     , a(a) {
@@ -186,8 +188,9 @@ void Bleft::printMembers(ostream& out) {
 
 void Bleft::format(ostream& out, int precedence) {
   if (precedence <= 5) {
-    out << " b ";
-    classpFormat(out, 4, a);
+    out << "b";
+    out << " ";
+    classpFormat(out, 6, a);
   } else {
     bracketFormat(out, this);
   }
@@ -207,7 +210,8 @@ void Cleft::printMembers(ostream& out) {
 void Cleft::format(ostream& out, int precedence) {
   if (precedence <= 5) {
     classpFormat(out, 5, a);
-    out << " c ";
+    out << " ";
+    out << "c";
   } else {
     bracketFormat(out, this);
   }
@@ -230,8 +234,10 @@ void Dleft::printMembers(ostream& out) {
 void Dleft::format(ostream& out, int precedence) {
   if (precedence <= 5) {
     classpFormat(out, 5, a1);
-    out << " d ";
-    classpFormat(out, 4, a2);
+    out << " ";
+    out << "d";
+    out << " ";
+    classpFormat(out, 6, a2);
   } else {
     bracketFormat(out, this);
   }
@@ -250,7 +256,8 @@ void Bright::printMembers(ostream& out) {
 
 void Bright::format(ostream& out, int precedence) {
   if (precedence <= 3) {
-    out << " b ";
+    out << "b";
+    out << " ";
     classpFormat(out, 3, a);
   } else {
     bracketFormat(out, this);
@@ -270,8 +277,9 @@ void Cright::printMembers(ostream& out) {
 
 void Cright::format(ostream& out, int precedence) {
   if (precedence <= 3) {
-    classpFormat(out, 2, a);
-    out << " c ";
+    classpFormat(out, 4, a);
+    out << " ";
+    out << "c";
   } else {
     bracketFormat(out, this);
   }
@@ -293,8 +301,10 @@ void Dright::printMembers(ostream& out) {
 
 void Dright::format(ostream& out, int precedence) {
   if (precedence <= 3) {
-    classpFormat(out, 2, a1);
-    out << " d ";
+    classpFormat(out, 4, a1);
+    out << " ";
+    out << "d";
+    out << " ";
     classpFormat(out, 3, a2);
   } else {
     bracketFormat(out, this);
@@ -314,8 +324,9 @@ void Bnassoc::printMembers(ostream& out) {
 
 void Bnassoc::format(ostream& out, int precedence) {
   if (precedence <= 2) {
-    out << " b ";
-    classpFormat(out, 1, a);
+    out << "b";
+    out << " ";
+    classpFormat(out, 3, a);
   } else {
     bracketFormat(out, this);
   }
@@ -334,8 +345,9 @@ void Cnassoc::printMembers(ostream& out) {
 
 void Cnassoc::format(ostream& out, int precedence) {
   if (precedence <= 2) {
-    classpFormat(out, 1, a);
-    out << " c ";
+    classpFormat(out, 3, a);
+    out << " ";
+    out << "c";
   } else {
     bracketFormat(out, this);
   }
@@ -357,9 +369,11 @@ void Dnassoc::printMembers(ostream& out) {
 
 void Dnassoc::format(ostream& out, int precedence) {
   if (precedence <= 2) {
-    classpFormat(out, 1, a1);
-    out << " d ";
-    classpFormat(out, 1, a2);
+    classpFormat(out, 3, a1);
+    out << " ";
+    out << "d";
+    out << " ";
+    classpFormat(out, 3, a2);
   } else {
     bracketFormat(out, this);
   }
@@ -377,11 +391,7 @@ void Literal::printMembers(ostream& out) {
 }
 
 void Literal::format(ostream& out, int precedence) {
-  if (precedence <= 6) {
-    classpFormat(out, 0, val);
-  } else {
-    bracketFormat(out, this);
-  }
+  classpFormat(out, 0, val);
 }
 /* END METHOD DEFINITIONS */
 
@@ -414,22 +424,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -480,7 +513,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (prec1::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

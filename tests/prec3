@@ -16,22 +16,40 @@
 // limitations under the License. 
  
 
-class A {
-  optional int x;
-  optional int y;
-  syntax((x|y)*);
+class Expression {
+  %parseable;
+  sample('4-1+2-5', print);
+  sample('4-1+2+3-5', print);
+  sample('4-1*2-5', print);
+  sample('4-1*2*3-5', print);
+  sample('4*1+2+3*5', print);
+  sample('4+1*2*3+5', print);
+  sample('1*2-3*4*5/6*7*8', print);
 }
-class B {
-  int a1[];
-  optional int x;
-  syntax((a1|x)+);
+
+class Sum: Expression {
+  Expression args[];
+  syntax(args+'+') %left 1;
 }
-class C {
-  A a1[];
-  A a2[];
-  A a3[];
-  optional int x;
-  optional int y;
-  optional int z;
-  syntax((a1 '+' a2|x '*' y| a1 '<' z)+',');
+
+class Diff: Expression {
+  Expression arg1;
+  Expression arg2;
+  syntax(arg1 '-' arg2) %left 1;
+}
+
+class Prod: Expression {
+  Expression args[];
+  syntax(args+'*') %left 1;
+}
+
+class Div: Expression {
+  Expression arg1;
+  Expression arg2;
+  syntax(arg1 '/' arg2) %left 2;
+}
+
+class Base : Expression {
+  int n;
+  syntax(n);
 }

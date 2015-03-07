@@ -16,7 +16,7 @@ A : {...}
 
 * DONE (dgudeman) Get alternation working
 
-* Currently there is no storage management of the parse tree. Add ownership of
+* DONE Currently there is no storage management of the parse tree. Add ownership of
 pointers and freeing them when possible.
 
 * Get namespaces working. See ParserBase::namespace_tag.
@@ -41,17 +41,17 @@ parse a sequence of flags.
 * DONE (dgudeman) Implement assignment patterns:
   <attr> '{' (<re> '->' <value>*|) '}'
 
-* We need to deal with passing a string as the value of a production. We could
+* DONE We need to deal with passing a string as the value of a production. We could
 either pass pointers to string and deal with allocation, or we could define our
 own data types to enable it.
 
 * DONE (dgudeman) Make it work with only standard tools (not dependent on
 google3).
 
-* Get the output compiling and executing. Produce a simple API for the user.
+* DONE Get the output compiling and executing. Produce a simple API for the user.
 See ParserBase::directory.
 
-* Seperate class defs into .h and .cc files.
+* DONE Seperate class defs into .h and .cc files.
 
 * DONE (dgudeman) Get inheritance working:
 class A {
@@ -91,7 +91,7 @@ class Multiplication extends Operation {
 
 ** FEATURES AND PERFORMANCE
 
-* Add an enum for class types, and isa and asa functions for each class.
+* Add an enum for class types, and isa functions for each class.
 
 * Multiple syntaxes. Write a syntax for language A and one for language B, and
 you automatically get an A->B translator and a B->A translator. For example:
@@ -142,7 +142,7 @@ class Addition {
   syntax("$1 + $2");  // equivalent to syntax ( args[1] '+' args[2])
 }
 
-* Implement syntax elements attached to attributes. The semantics are as follows
+* DONE Implement syntax elements attached to attributes. The semantics are as follows
 class A {
   int x syntax(... $0 ...); // attribute syntax for x
   syntax(... x ...);        // class syntax

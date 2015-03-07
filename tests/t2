@@ -1,9 +1,38 @@
+// This file is a part of the Classp parser, formatter, and AST generator. 
+// Description: Used to generate skeleton-generator.h from the skeleton files. 
+//  
+// Copyright 2015 Google Inc. 
+//  
+// Licensed under the Apache License, Version 2.0 (the "License"); 
+// you may not use this file except in compliance with the License. 
+// You may obtain a copy of the License at 
+//  
+// http://www.apache.org/licenses/LICENSE-2.0 
+//  
+// Unless required by applicable law or agreed to in writing, software 
+// distributed under the License is distributed on an "AS IS" BASIS, 
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+// See the License for the specific language governing permissions and 
+// limitations under the License. 
+ 
+
 class A {
+  %parseable;
   optional int x;
   syntax ( '(' self ')' );
   syntax ( '[' self ']' );
   syntax ( 'just' x );
+  syntax ( 'still' x );
+  sample('just 5', '(A x:5)');
+  sample('(still 5)', '(A x:5)');
+  sample('((just 5))', '(A x:5)');
+  sample('[(just 5)]', '(A x:5)');
+  sample('x 3 y true', '(B x:3 y:true)');
+  sample('([(x 3 y true)])', '(B x:3 y:true)');
+  sample('([(bar x 3 y true)])', '(B x:3 y:true)');
+  sample('x 3 z 4', '(C x:3 z:4)');
 }
+
 class B: A {
   optional bool y;
   syntax ('x' x 'y' y);

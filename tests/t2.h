@@ -51,6 +51,7 @@ class A: public AstNode {
  public:
   string className() override { return "A"; }
   A(ParseState parseState, AttributeMap& keyword_args);
+  static A* parse(istream& input, ostream& errors);
   void printMembers(ostream& out) override;
   void format(ostream& out, int precedence) override;
 

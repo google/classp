@@ -55,9 +55,8 @@ class FunctionCall;
 
 
 /* BEGIN NONTERMINAL TYPES */
-%type <vector<Expression*>> array0_Expression__1
 %type <Expression*> class_Expression
-%type <FunctionCall*> class_FunctionCall
+%type <vector<Expression*>> array0_Expression__1
 /* END NONTERMINAL TYPES */
 
 %type <bool> TOK_BOOL
@@ -91,18 +90,16 @@ start
 
 /* BEGIN PRODUCTIONS */
 class_Expression
-  : class_FunctionCall { $$ = $1; }
-  ;
-
-class_FunctionCall
   :  TOK_IDENTIFIER TOK_LPAREN  array0_Expression__1 TOK_RPAREN {
-      $$ = new FunctionCall(@$, $1, $3); }
+      $$ = new FunctionCall(@$, $1, $3); }  // FunctionCall
   ;
 
 array0_Expression__1
   : { $$ = vector<Expression*>(); }
-  | class_Expression{ $$ = vector<Expression*>(); $$.emplace_back($1); }
+  | class_Expression { $$ = vector<Expression*>(); $$.emplace_back($1); }
   | array0_Expression__1 TOK_COMMA class_Expression { $$ = $1; $$.emplace_back($3); }
+  ;
+
 
 /* END PRODUCTIONS */
 
@@ -145,14 +142,17 @@ void FunctionCall::printMembers(ostream& out) {
 
 void FunctionCall::format(ostream& out, int precedence) {
   classpFormat(out, 0, functionName);
-  out << " ( ";
+  out << " ";
+  out << "(";
+  out << " ";
   for (size_t i = 0; i < argList.size(); i++) {
     if (i > 0) {
-      out << " , ";
+      out << ",";
     }
     classpFormat(out, 0, argList[i]);
   }
-  out << " ) ";
+  out << " ";
+  out << ")";
 }
 /* END METHOD DEFINITIONS */
 
@@ -185,22 +185,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -224,9 +247,9 @@ int ParseSample(const char* sample, const char* expected_result = kPrint) {
 int ParseSamples() {
   int num_errors = 0;
 /* BEGIN SAMPLES */
-  num_errors += ParseSample<FunctionCall>(R"#A#(f())#A#", R"#A#((FunctionCall functionName:f argList:[]))#A#");
-  num_errors += ParseSample<FunctionCall>(R"#A#(f(a()))#A#", R"#A#((FunctionCall functionName:f argList:[(FunctionCall functionName:a argList:[])]))#A#");
-  num_errors += ParseSample<FunctionCall>(R"#A#(f(a(),b(x()),c()))#A#", R"#A#((FunctionCall functionName:f argList:[(FunctionCall functionName:a argList:[]), (FunctionCall functionName:b argList:[(FunctionCall functionName:x argList:[])]), (FunctionCall functionName:c argList:[])]))#A#");
+  num_errors += ParseSample<Expression>(R"#A#(f())#A#", R"#A#((FunctionCall functionName:f argList:[]))#A#");
+  num_errors += ParseSample<Expression>(R"#A#(f(a()))#A#", R"#A#((FunctionCall functionName:f argList:[(FunctionCall functionName:a argList:[])]))#A#");
+  num_errors += ParseSample<Expression>(R"#A#(f(a(),b(x()),c()))#A#", R"#A#((FunctionCall functionName:f argList:[(FunctionCall functionName:a argList:[]), (FunctionCall functionName:b argList:[(FunctionCall functionName:x argList:[])]), (FunctionCall functionName:c argList:[])]))#A#");
 /* END SAMPLES */
   std::cout << "Errors: " << num_errors << "\n";
   return num_errors;
@@ -254,7 +277,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (example1::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

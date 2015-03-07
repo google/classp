@@ -114,7 +114,7 @@ multiarraySTAR_A
   : { $$ = AttributeMap(); }
   |  TOK_LT TOK_INT64 TOK_GT {
       $$ = AttributeMap();
-      $$.Push<int>("a1", 2); }
+      $$.Push<int>("a1", $2); }
   | multiarraySTAR_A  TOK_BAR TOK_HASH TOK_LT TOK_INT64 TOK_GT {
       $$ = $1;
       $$.Push("a1", $5); }
@@ -130,8 +130,8 @@ multiarraySTAR_B
   : { $$ = AttributeMap(); }
   |  TOK_LT TOK_INT64 TOK_COMMA TOK_INT64 TOK_GT {
       $$ = AttributeMap();
-      $$.Push<int>("a1", 2);
-      $$.Push<int>("a2", 4); }
+      $$.Push<int>("a1", $2);
+      $$.Push<int>("a2", $4); }
   | multiarraySTAR_B TOK_BAR TOK_LT TOK_INT64 TOK_COMMA TOK_INT64 TOK_GT {
       $$ = $1;
       $$.Push("a1", $4);
@@ -162,8 +162,8 @@ class_D
 multiarrayPLUS_D
   :  TOK_LT TOK_INT64 TOK_COMMA TOK_INT64 TOK_GT {
       $$ = AttributeMap();
-      $$.Push<int>("a1", 2);
-      $$.Push<int>("a2", 4); }
+      $$.Push<int>("a1", $2);
+      $$.Push<int>("a2", $4); }
   | multiarrayPLUS_D  TOK_LT TOK_INT64 TOK_COMMA TOK_INT64 TOK_GT {
       $$ = $1;
       $$.Push("a1", $3);
@@ -173,8 +173,8 @@ multiarrayPLUS_D
 multiarrayPLUS_D__2
   :  TOK_LT TOK_INT64 TOK_COMMA TOK_INT64 TOK_GT {
       $$ = AttributeMap();
-      $$.Push<int>("a3", 2);
-      $$.Push<int>("a4", 4); }
+      $$.Push<int>("a3", $2);
+      $$.Push<int>("a4", $4); }
   | multiarrayPLUS_D__2 TOK_BAR TOK_LT TOK_INT64 TOK_COMMA TOK_INT64 TOK_GT {
       $$ = $1;
       $$.Push("a3", $4);
@@ -227,11 +227,15 @@ void A::printMembers(ostream& out) {
 void A::format(ostream& out, int precedence) {
   for (size_t i = 0; i < a1.size(); i++) {
     if (i > 0) {
-      out << " | " << "# ";
+      out << "|";
+      out << " ";
+      out << "#";
     }
-    out << " < ";
+    out << "<";
+    out << " ";
     classpFormat(out, 0, a1[i]);
-    out << " > ";
+    out << " ";
+    out << ">";
   }
 }
 B::B(ParseState parseState, AttributeMap& keyword_args)
@@ -250,13 +254,17 @@ void B::printMembers(ostream& out) {
 void B::format(ostream& out, int precedence) {
   for (size_t i = 0; i < a1.size(); i++) {
     if (i > 0) {
-      out << " | ";
+      out << "|";
     }
-    out << " < ";
+    out << "<";
+    out << " ";
     classpFormat(out, 0, a1[i]);
-    out << " , ";
+    out << " ";
+    out << ",";
+    out << " ";
     classpFormat(out, 0, a2[i]);
-    out << " > ";
+    out << " ";
+    out << ">";
   }
 }
 C::C(ParseState parseState, AttributeMap& keyword_args)
@@ -274,11 +282,15 @@ void C::printMembers(ostream& out) {
 
 void C::format(ostream& out, int precedence) {
   for (size_t i = 0; i < a1.size(); i++) {
-    out << " < ";
+    out << "<";
+    out << " ";
     classpFormat(out, 0, a1[i]);
-    out << " , ";
+    out << " ";
+    out << ",";
+    out << " ";
     classpFormat(out, 0, a2[i]);
-    out << " > ";
+    out << " ";
+    out << ">";
   }
 }
 D::D(ParseState parseState, AttributeMap& keyword_args)
@@ -302,21 +314,30 @@ void D::printMembers(ostream& out) {
 
 void D::format(ostream& out, int precedence) {
   for (size_t i = 0; i < a1.size(); i++) {
-    out << " < ";
+    out << "<";
+    out << " ";
     classpFormat(out, 0, a1[i]);
-    out << " , ";
+    out << " ";
+    out << ",";
+    out << " ";
     classpFormat(out, 0, a2[i]);
-    out << " > ";
+    out << " ";
+    out << ">";
   }
+  out << " ";
   for (size_t i = 0; i < a3.size(); i++) {
     if (i > 0) {
-      out << " | ";
+      out << "|";
     }
-    out << " < ";
+    out << "<";
+    out << " ";
     classpFormat(out, 0, a3[i]);
-    out << " , ";
+    out << " ";
+    out << ",";
+    out << " ";
     classpFormat(out, 0, a4[i]);
-    out << " > ";
+    out << " ";
+    out << ">";
   }
 }
 E::E(ParseState parseState)
@@ -327,8 +348,13 @@ void E::printMembers(ostream& out) {
 }
 
 void E::format(ostream& out, int precedence) {
-  out << " < " << "> ";
-  out << " < " << "> ";
+  out << "<";
+  out << " ";
+  out << ">";
+  out << " ";
+  out << "<";
+  out << " ";
+  out << ">";
 }
 /* END METHOD DEFINITIONS */
 
@@ -361,22 +387,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -427,7 +476,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (t6::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

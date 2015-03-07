@@ -60,8 +60,8 @@ class Sum;
 
 
 /* BEGIN NONTERMINAL TYPES */
-%type <vector<Expression*>> array0_Expression__1
 %type <Expression*> class_Expression
+%type <vector<Expression*>> array0_Expression__1
 %type <Expression*> class_Expression_p2
 %type <Expression*> class_Expression_p3
 /* END NONTERMINAL TYPES */
@@ -116,8 +116,9 @@ class_Expression_p3
 
 array0_Expression__1
   : { $$ = vector<Expression*>(); }
-  | class_Expression{ $$ = vector<Expression*>(); $$.emplace_back($1); }
+  | class_Expression { $$ = vector<Expression*>(); $$.emplace_back($1); }
   | array0_Expression__1 TOK_COMMA class_Expression { $$ = $1; $$.emplace_back($3); }
+  ;
 
 
 
@@ -149,10 +150,12 @@ void Expression::printMembers(ostream& out) {
 }
 
 void Expression::bracketFormat(ostream& out, AstNode* self) {
-  out << " ( ";
+  out << "(";
+  out << " ";
   classpFormat(out, 0, self);
-  out << " ) ";
-  }
+  out << " ";
+  out << ")";
+}
 FunctionCall::FunctionCall(ParseState parseState, identifier functionName, vector<Expression*> argList)
     : Expression(parseState)
     , functionName(functionName)
@@ -169,19 +172,18 @@ void FunctionCall::printMembers(ostream& out) {
 }
 
 void FunctionCall::format(ostream& out, int precedence) {
-  if (precedence <= 3) {
-    classpFormat(out, 0, functionName);
-    out << " ( ";
-    for (size_t i = 0; i < argList.size(); i++) {
-      if (i > 0) {
-        out << " , ";
-      }
-      classpFormat(out, 0, argList[i]);
+  classpFormat(out, 0, functionName);
+  out << " ";
+  out << "(";
+  out << " ";
+  for (size_t i = 0; i < argList.size(); i++) {
+    if (i > 0) {
+      out << ",";
     }
-    out << " ) ";
-  } else {
-    bracketFormat(out, this);
+    classpFormat(out, 0, argList[i]);
   }
+  out << " ";
+  out << ")";
 }
 Sum::Sum(ParseState parseState, Expression* val1, Expression* val2)
     : Expression(parseState)
@@ -201,8 +203,10 @@ void Sum::printMembers(ostream& out) {
 void Sum::format(ostream& out, int precedence) {
   if (precedence <= 1) {
     classpFormat(out, 1, val1);
-    out << " + ";
-    classpFormat(out, 0, val2);
+    out << " ";
+    out << "+";
+    out << " ";
+    classpFormat(out, 2, val2);
   } else {
     bracketFormat(out, this);
   }
@@ -225,8 +229,10 @@ void Product::printMembers(ostream& out) {
 void Product::format(ostream& out, int precedence) {
   if (precedence <= 2) {
     classpFormat(out, 2, val1);
-    out << " * ";
-    classpFormat(out, 1, val2);
+    out << " ";
+    out << "*";
+    out << " ";
+    classpFormat(out, 3, val2);
   } else {
     bracketFormat(out, this);
   }
@@ -244,11 +250,7 @@ void IntegerLiteral::printMembers(ostream& out) {
 }
 
 void IntegerLiteral::format(ostream& out, int precedence) {
-  if (precedence <= 3) {
-    classpFormat(out, 0, val);
-  } else {
-    bracketFormat(out, this);
-  }
+  classpFormat(out, 0, val);
 }
 /* END METHOD DEFINITIONS */
 
@@ -281,22 +283,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -322,6 +347,7 @@ int ParseSamples() {
 /* BEGIN SAMPLES */
   num_errors += ParseSample<Expression>(R"#A#(1+2)#A#", R"#A#((Sum val1:(IntegerLiteral val:1) val2:(IntegerLiteral val:2)))#A#");
   num_errors += ParseSample<Expression>(R"#A#(1+2*(3+4))#A#", R"#A#((Sum val1:(IntegerLiteral val:1) val2:(Product val1:(IntegerLiteral val:2) val2:(Sum val1:(IntegerLiteral val:3) val2:(IntegerLiteral val:4)))))#A#");
+  num_errors += ParseSample<Expression>(R"#A#((1+2)+(3+4))#A#", R"#A#((Sum val1:(Sum val1:(IntegerLiteral val:1) val2:(IntegerLiteral val:2)) val2:(Sum val1:(IntegerLiteral val:3) val2:(IntegerLiteral val:4))))#A#");
 /* END SAMPLES */
   std::cout << "Errors: " << num_errors << "\n";
   return num_errors;
@@ -349,7 +375,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (example2::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

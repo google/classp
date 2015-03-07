@@ -1,9 +1,8 @@
 /*
  * This file is a part of the Classp parser, formatter, and AST generator.
- * Author: David Gudeman
  * Description: Parser for the Classp language.
  *
- * Copyright 015 Google Inc.
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

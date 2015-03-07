@@ -1,7 +1,31 @@
-class Expression {}
+// This file is a part of the Classp parser, formatter, and AST generator. 
+// Description: Used to generate skeleton-generator.h from the skeleton files. 
+//  
+// Copyright 2015 Google Inc. 
+//  
+// Licensed under the Apache License, Version 2.0 (the "License"); 
+// you may not use this file except in compliance with the License. 
+// You may obtain a copy of the License at 
+//  
+// http://www.apache.org/licenses/LICENSE-2.0 
+//  
+// Unless required by applicable law or agreed to in writing, software 
+// distributed under the License is distributed on an "AS IS" BASIS, 
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+// See the License for the specific language governing permissions and 
+// limitations under the License. 
+ 
+
+class Expression {
+  %parseable;
+  syntax('(' self ')');
+  sample('a + 2', '(PlusOp arg1:(Variable id:a) arg2:(IntegerLiteral val:2)arg3[not defined])');
+  sample('a*(2+3=4) < 5', '(LtOp arg1:(TimesOp arg1:(Variable id:a) arg2:(EqOp arg1:(PlusOp arg1:(IntegerLiteral val:2) arg2:(IntegerLiteral val:3)arg3[not defined]) arg2:(IntegerLiteral val:4)arg3[not defined])arg3[not defined]) arg2:(IntegerLiteral val:5)arg3[not defined])');
+  sample('1 + case 1 when 1 then 1 else 2 + a end', '(PlusOp arg1:(IntegerLiteral val:1) arg2:(CaseExpression testExpr:(IntegerLiteral val:1) conditions:[(IntegerLiteral val:1)] results:[(IntegerLiteral val:1)] elseResult:(PlusOp arg1:(IntegerLiteral val:2) arg2:(Variable id:a)arg3[not defined]))arg3[not defined])');
+}
 
 class Variable: Expression {
-  identrifier id;
+  identifier id;
   syntax(id);
 }
 
@@ -11,17 +35,17 @@ class IntegerLiteral: Expression {
 }
 
 class CaseExpression: Expression {
-  Expression testExpr default true;
+  Expression testExpr;
   Expression conditions[];
   Expression results[];
-  Expression elseResult syntax('else' elseResult|);
-  syntax('case' (testExpr|) ('when' conditions 'then' results*) elseResult);
+  Expression elseResult syntax('else' elseResult);
+  syntax('case' testExpr ('when' conditions 'then' results*) elseResult 'end');
 }
 
 class Invocation: Expression {
   Expression arg1;
   optional Expression arg2;
-  optional Expression arg2;
+  optional Expression arg3;
 }
 
 class OrOp: Invocation {
@@ -60,9 +84,12 @@ class GeOp: Invocation {
   syntax(arg1 '>=' arg2) %nassoc 4;
 }
 
-class BetweenOp: Invocation {
-  syntax(arg1 'between' arg2 'and' arg3) %nassoc 4;
-}
+// TODO: this creates an ambiguity with the 'and' boolean operation. It should
+// be possible to detect this situation and use a precedence production that is
+// lower than the one that would cause a conflict with 'and'.
+//class BetweenOp: Invocation {
+//  syntax(arg1 'between' arg2 'and' arg3) %nassoc 4;
+//}
 
 class PlusOp: Invocation {
   syntax(arg1 '+' arg2) %left 5;

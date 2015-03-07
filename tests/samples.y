@@ -119,7 +119,8 @@ void A::printMembers(ostream& out) {
 }
 
 void A::format(ostream& out, int precedence) {
-  out << " + ";
+  out << "+";
+  out << " ";
   classpFormat(out, 0, n);
 }
 /* END METHOD DEFINITIONS */
@@ -153,22 +154,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -192,17 +216,17 @@ int ParseSample(const char* sample, const char* expected_result = kPrint) {
 int ParseSamples() {
   int num_errors = 0;
 /* BEGIN SAMPLES */
-  num_errors += ParseSample<A>(R"#A#(+ 3)#A#", kSucceed);
-  num_errors += ParseSample<A>(R"#A#(+ 3)#A#", kSucceed);
+  num_errors += ParseSample<A>(R"#A#(+ 1)#A#", kSucceed);
+  num_errors += ParseSample<A>(R"#A#(+ 2)#A#", kSucceed);
   num_errors += ParseSample<A>(R"#A#(+ 3)#A#", kFail);
-  num_errors += ParseSample<A>(R"#A#(+ 3)#A#", kPrint);
-  num_errors += ParseSample<A>(R"#A#(+ 3)#A#", R"#A#((A n:3))#A#");
-  num_errors += ParseSample<A>(R"#A#(+ 3)#A#", R"#A#(testing)#A#");
-  num_errors += ParseSample<A>(R"#A#(- 3)#A#", kSucceed);
-  num_errors += ParseSample<A>(R"#A#(- 3)#A#", kSucceed);
-  num_errors += ParseSample<A>(R"#A#(- 3)#A#", kFail);
-  num_errors += ParseSample<A>(R"#A#(- 3)#A#", kPrint);
-  num_errors += ParseSample<A>(R"#A#(- 3)#A#", R"#A#(testing)#A#");
+  num_errors += ParseSample<A>(R"#A#(+ 4)#A#", kPrint);
+  num_errors += ParseSample<A>(R"#A#(+ 5)#A#", R"#A#((A n:5))#A#");
+  num_errors += ParseSample<A>(R"#A#(+ 6)#A#", R"#A#(testing)#A#");
+  num_errors += ParseSample<A>(R"#A#(@ 7)#A#", kSucceed);
+  num_errors += ParseSample<A>(R"#A#(- 8)#A#", kSucceed);
+  num_errors += ParseSample<A>(R"#A#(- 9)#A#", kFail);
+  num_errors += ParseSample<A>(R"#A#(- 10)#A#", kPrint);
+  num_errors += ParseSample<A>(R"#A#(- 11)#A#", R"#A#(testing)#A#");
 /* END SAMPLES */
   std::cout << "Errors: " << num_errors << "\n";
   return num_errors;
@@ -230,7 +254,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (samples::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

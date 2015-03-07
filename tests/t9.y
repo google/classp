@@ -53,13 +53,11 @@ class C;
 
 
 /* BEGIN NONTERMINAL TYPES */
+%type <A*> class_A
 %type <AttributeMap> alt_C__1
 %type <AttributeMap> alt_C__2
 %type <AttributeMap> alt_C__3
 %type <AttributeMap> altiterSTAR_C
-%type <A*> class_A
-%type <B*> class_B
-%type <C*> class_C
 /* END NONTERMINAL TYPES */
 
 %type <bool> TOK_BOOL
@@ -93,14 +91,6 @@ start
 
 /* BEGIN PRODUCTIONS */
 class_A
-  : class_B { $$ = $1; }
-  ;
-
-class_B
-  : class_C { $$ = $1; }
-  ;
-
-class_C
   :  TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64 TOK_INT64  alt_C__1  alt_C__2  altiterSTAR_C {
       AttributeMap keywords = $13;
       keywords.Merge($14);
@@ -111,7 +101,7 @@ class_C
       keywords.Add("b3", $7);
       keywords.Add("c2", $10);
       keywords.Add("c3", $11);
-      $$ = new C(@$, $1, $4, $5, $8, $9, $12, keywords); }
+      $$ = new C(@$, $1, $4, $5, $8, $9, $12, keywords); }  // C
   ;
 
 alt_C__1
@@ -142,8 +132,10 @@ alt_C__3
 
 altiterSTAR_C
   : { $$ = AttributeMap(); }
-  | altiterSTAR_C  alt_C__3 { $$ = $1; $$->Merge($2); }
+  | altiterSTAR_C  alt_C__3 { $$ = $1; $$.Merge($2); }
   ;
+
+
 
 /* END PRODUCTIONS */
 
@@ -265,20 +257,33 @@ void C::printMembers(ostream& out) {
 
 void C::format(ostream& out, int precedence) {
   classpFormat(out, 0, a1);
+  out << " ";
   classpFormat(out, 0, a2);
+  out << " ";
   classpFormat(out, 0, a3);
+  out << " ";
   classpFormat(out, 0, a4[i]);
+  out << " ";
   classpFormat(out, 0, b1);
+  out << " ";
   classpFormat(out, 0, b2);
+  out << " ";
   classpFormat(out, 0, b3);
+  out << " ";
   classpFormat(out, 0, b4[i]);
+  out << " ";
   classpFormat(out, 0, c1);
+  out << " ";
   classpFormat(out, 0, c2);
+  out << " ";
   classpFormat(out, 0, c3);
+  out << " ";
   classpFormat(out, 0, c4[i]);
+  out << " ";
   if (has_c5) {
     classpFormat(out, 0, c5);
   }
+  out << " ";
   if (c6 != 0) {
     classpFormat(out, 0, c6);
   } else if ((!c7.empty())) {
@@ -286,6 +291,7 @@ void C::format(ostream& out, int precedence) {
   } else {
     classpFormat(out, 0, c6);
   }
+  out << " ";
   if (c8 != 0) {
     classpFormat(out, 0, c8);
   }
@@ -326,22 +332,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -392,7 +421,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (t9::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

@@ -62,13 +62,13 @@ class Unparsed;
 
 
 /* BEGIN NONTERMINAL TYPES */
+%type <ProcedureDecl*> class_ProcedureDecl
+%type <Declaration*> class_Declaration
+%type <Statement*> class_Statement
 %type <vector<Declaration*>> array0_Declaration__1
 %type <vector<Declaration*>> array0_Declaration__2
 %type <vector<Statement*>> array0_Statement__1
 %type <vector<identifier>> array0_identifier__1
-%type <Declaration*> class_Declaration
-%type <ProcedureDecl*> class_ProcedureDecl
-%type <Statement*> class_Statement
 /* END NONTERMINAL TYPES */
 
 %type <bool> TOK_BOOL
@@ -108,17 +108,20 @@ class_ProcedureDecl
 
 array0_Declaration__1
   : { $$ = vector<Declaration*>(); }
-  | class_Declaration{ $$ = vector<Declaration*>(); $$.emplace_back($1); }
+  | class_Declaration { $$ = vector<Declaration*>(); $$.emplace_back($1); }
   | array0_Declaration__1 TOK_COMMA class_Declaration { $$ = $1; $$.emplace_back($3); }
+  ;
 
 array0_Declaration__2
   : { $$ = vector<Declaration*>(); }
-  | class_Declaration{ $$ = vector<Declaration*>(); $$.emplace_back($1); }
+  | class_Declaration { $$ = vector<Declaration*>(); $$.emplace_back($1); }
   | array0_Declaration__2 TOK_SEMICOLON class_Declaration { $$ = $1; $$.emplace_back($3); }
+  ;
 
 array0_Statement__1
   : { $$ = vector<Statement*>(); }
   | array0_Statement__1  class_Statement { $$ = $1; $$.emplace_back($2); }
+  ;
 
 class_Declaration
   :  TOK_IDENTIFIER TOK_IDENTIFIER {
@@ -132,8 +135,9 @@ class_Statement
 
 array0_identifier__1
   : { $$ = vector<identifier>(); }
-  | TOK_IDENTIFIER{ $$ = vector<identifier>(); $$.emplace_back($1); }
+  | TOK_IDENTIFIER { $$ = vector<identifier>(); $$.emplace_back($1); }
   | array0_identifier__1 TOK_COMMA TOK_IDENTIFIER { $$ = $1; $$.emplace_back($3); }
+  ;
 
 
 /* END PRODUCTIONS */
@@ -174,27 +178,37 @@ void ProcedureDecl::printMembers(ostream& out) {
 }
 
 void ProcedureDecl::format(ostream& out, int precedence) {
-  out << " procedure ";
+  out << "procedure";
+  out << " ";
   classpFormat(out, 0, name);
-  out << " ( ";
+  out << " ";
+  out << "(";
+  out << " ";
   for (size_t i = 0; i < arguments.size(); i++) {
     if (i > 0) {
-      out << " , ";
+      out << ",";
     }
     classpFormat(out, 0, arguments[i]);
   }
-  out << " ) " << "declare ";
+  out << " ";
+  out << ")";
+  out << " ";
+  out << "declare";
+  out << " ";
   for (size_t i = 0; i < locals.size(); i++) {
     if (i > 0) {
-      out << " ; ";
+      out << ";";
     }
     classpFormat(out, 0, locals[i]);
   }
-  out << " begin ";
+  out << " ";
+  out << "begin";
+  out << " ";
   for (size_t i = 0; i < statements.size(); i++) {
     classpFormat(out, 0, statements[i]);
   }
-  out << " end ";
+  out << " ";
+  out << "end";
 }
 Declaration::Declaration(ParseState parseState, identifier type_name, identifier variable_name)
     : AstNode(parseState)
@@ -211,6 +225,7 @@ void Declaration::printMembers(ostream& out) {
 
 void Declaration::format(ostream& out, int precedence) {
   classpFormat(out, 0, type_name);
+  out << " ";
   classpFormat(out, 0, variable_name);
 }
 Statement::Statement(ParseState parseState, identifier procedure_name, vector<identifier> arguments)
@@ -228,14 +243,17 @@ void Statement::printMembers(ostream& out) {
 
 void Statement::format(ostream& out, int precedence) {
   classpFormat(out, 0, procedure_name);
-  out << " ( ";
+  out << " ";
+  out << "(";
+  out << " ";
   for (size_t i = 0; i < arguments.size(); i++) {
     if (i > 0) {
-      out << " , ";
+      out << ",";
     }
     classpFormat(out, 0, arguments[i]);
   }
-  out << " ) ";
+  out << " ";
+  out << ")";
 }
 Unparsed::Unparsed(ParseState parseState, int foo)
     : AstNode(parseState)
@@ -281,22 +299,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -348,7 +389,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (t3::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

@@ -1,9 +1,8 @@
 /*
  * This file is a part of the Classp parser, formatter, and AST generator.
- * Author: David Gudeman
  * Description: Functions to generate the formatter.
  *
- * Copyright 015 Google Inc.
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,9 +34,9 @@ class FormatInfo {
     if (precedence_ <= 0 || !(is_first || is_last)) {
       stream_ << "0";
     } else if (is_first && assoc_ != AssocLeft) {
-      stream_ << precedence_ - 1;
+      stream_ << precedence_ + 1;
     } else if (is_last && assoc_ != AssocRight) {
-      stream_ << precedence_ - 1;
+      stream_ << precedence_ + 1;
     } else {
       stream_ << precedence_;
     }
@@ -94,7 +93,7 @@ void ParseTreeClassDecl::GenerateClassFormatter(ostream& out) {
       // bracketing syntax for handling it.
       out << "\n    self->format(out, 0);";
     }
-    out << "\n  }\n";
+    out << "\n}\n";
   }
   if (main_syntax) {
     out
@@ -108,7 +107,7 @@ void ParseTreeClassDecl::GenerateClassFormatter(ostream& out) {
 void ParseTreeSyntaxDecl::GenerateClassFormatter(ostream& out,
                                                  const string& separator) {
   FormatInfo format_info(out, precedence, assoc);
-  if (!is_self && class_def->has_precedence) {
+  if (!is_self && class_def->has_precedence && precedence >= 0) {
     out << separator << "if (precedence <= " << precedence
                      << ") {";
     syntax->GenerateFormatter(format_info, separator + "  ", true, true);
@@ -122,7 +121,7 @@ void ParseTreeSyntaxDecl::GenerateClassFormatter(ostream& out,
 void ParseTreeSymbol::GenerateFormatter(const FormatInfo& format_info,
                                         const string& separator, bool is_first,
                                         bool is_last) {
-  format_info.stream_ << separator << "out << \" " << value << " \";";
+  format_info.stream_ << separator << "out << \"" << value << "\";";
 }
 
 void ParseTreeUnop::GenerateFormatter(const FormatInfo& format_info,
@@ -179,6 +178,9 @@ void ParseTreeItemList::GenerateFormatter(const FormatInfo& format_info,
                                           bool is_first, bool is_last) {
   int n = array.size() - 1;
   for (int i = 0; i <= n; i++) {
+#if 0
+    // TODO: this code is an optimization to print a sequence of simple values
+    // as one string, but it is not complete and the spacing is not right.
     ParseTreeSymbol* str = array[i]->AsSymbol();
     if (str) {
       format_info.stream_ << separator << "out << \" " << str->value
@@ -191,6 +193,8 @@ void ParseTreeItemList::GenerateFormatter(const FormatInfo& format_info,
       format_info.stream_ << ";";
       if (i > n) break;
     }
+#endif
+    if (i > 0) format_info.stream_ << separator << "out << \" \";";
     array[i]->GenerateFormatter(format_info, separator, is_first && i == 0,
                                is_last && i == n);
   }
@@ -308,7 +312,6 @@ void ParseTree::GenerateCaseFormatter(const FormatInfo& format_info,
       default_val->GenerateFormatter(format_info, separator + "  ", false,
                                      false);
     }
-    format_info.stream_ << separator << "}";
     else_token = "} else ";
   }
   for (auto tree : alt_list->array) {

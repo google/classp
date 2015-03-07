@@ -1,9 +1,8 @@
 /*
  * This file is a part of the Classp parser, formatter, and AST generator.
- * Author: David Gudeman
  * Description: These structs are used for both the parse tree and AST.
  *
- * Copyright 015 Google Inc.
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +58,8 @@ class ParserBase;
 class LexerBase;
 
 typedef yyParser::token token;
+
+#define SELF_ATTR_NAME "self"
 
 enum Associativity { AssocNone, AssocLeft, AssocRight, AssocNassoc };
 // Precedence is a typedef because it may prove convenient to make it a float
@@ -439,8 +440,7 @@ struct ParseTreeClassDecl : public ParseTree {
 
   // Generate a call to the constructor.
   void GenerateConstructorCall(ostream& stream,
-                               const PositionalMatches& positional_matches,
-                               bool has_keywords);
+                               const PositionalMatches& positional_matches);
 
   void GenerateAction(RuleInfo* rule_info);
 
@@ -467,9 +467,12 @@ struct ParseTreeClassDecl : public ParseTree {
   }
   void AddAttributes(const map<string, ParseTreeAttribute*>& attrs);
 
-  // For every syntax of this or any subclass with an unspecified precedence,
-  // set the precedence to max_precedence.
-  void SetMaxPrecedence(Precedence max_precedence);
+  // Copies to the syntaxe of source to the parsed_syntax member of all ancestor
+  // classes (including this as an ancestor) that have the is_parsed flag set.
+  void CopySyntaxToParsedAncestors(ParseTreeClassDecl* source);
+
+  // Set the has_precedence flag for this and all subclasses.
+  void SetHasPrecedence();
 
   void GenerateClassFormatter(ostream& out);
   void GenerateClassFormatterDeclarations(ostream& out);
@@ -489,7 +492,7 @@ struct ParseTreeClassDecl : public ParseTree {
   bool parseable = false;  // true if the %parseable indicator is present
 
   // The following are set in Decorate2
-  bool is_parsed = false;
+  bool is_parsed = false;  // true if parseable or appears in a syntax.
   // A list of the fixed position parameters for the constructor in the order
   // they occur as formal parameters.
   vector<ParseTreeAttribute*> required_params;
@@ -497,6 +500,8 @@ struct ParseTreeClassDecl : public ParseTree {
   int num_inherited_required_params;
   // Optional parameters that are represented as "keyword" parameters.
   KeywordMatches optional_params;
+  // True if a keyword argument is needed in the constructor.
+  bool has_keyword_arg = false;
 
   // The following are set in Decorate3
   // True if this or any subclass has a syntax with a precedence declaration.
@@ -504,6 +509,8 @@ struct ParseTreeClassDecl : public ParseTree {
   // A set of all precedences used by syntaxes of this class and subclasses.
   // This is only set if the class is parseable.
   set<Precedence> precedences;
+  // The list of syntaxes that are used to create parsing rules for this class.
+  vector<ParseTreeSyntaxDecl*> parsing_syntax;
 };
 
 struct ParseTreeAttribute : public ParseTree {
@@ -515,7 +522,7 @@ struct ParseTreeAttribute : public ParseTree {
   ParseTreeAttribute(ParserBase* parser,
                      const yyParser::location_type& location,
                      const ParseTreeClassDecl* class_def)
-      : ParseTreeAttribute(parser, location, "self",
+      : ParseTreeAttribute(parser, location, SELF_ATTR_NAME,
                            class_def->class_name, false, false, nullptr,
                            nullptr) {
     is_self = true;
@@ -577,6 +584,7 @@ struct ParseTreeAttribute : public ParseTree {
   bool is_nested = false;  // appears in a nested position requiring keyword arg
   bool is_required = false; // one of the params in the constructor
   bool is_case_assigned = false;  // the target in a case pattern
+  bool in_syntax_decl = false;  // detects infinite recursion on syntax_decl
 };
 
 struct ParseTreeSyntaxDecl : public ParseTree {
@@ -613,6 +621,11 @@ struct ParseTreeSyntaxDecl : public ParseTree {
   void GenerateClassFormatter(ostream& out,
                               const string& separator);
 
+  // During name resolution, returns the attribute that id refers to, even if
+  // it is the name "self" inside a local syntax.
+  ParseTreeAttribute* GetAttributeBeingFormatted(
+    ParseTreeIdentifier* id);
+
   const string syntax_type;
   vector<ParseTree*> features;
   ParseTree* syntax;
@@ -620,9 +633,11 @@ struct ParseTreeSyntaxDecl : public ParseTree {
 
   // The following are set in Decorate1
   Associativity assoc = AssocNone;
-  Precedence precedence = -1;
   ParseTreeClassDecl* class_def = nullptr;  // the class this sytnax is for
   ParseTreeAttribute* attr_def = nullptr;   // the attribute for local syntaxes
+
+  // Set to the initial value in Decorate1 but possibly updated in Decorate3
+  Precedence precedence = -1;
 };
 
 struct ParseTreeItemList : public ParseTreeMulti {

@@ -1,34 +1,41 @@
-parsing '+ 3':
+parsing sample '+ 1':
+parsing formatted result '+ 1'
 SUCCEEDS
-parsing '+ 3':
+parsing sample '+ 2':
+parsing formatted result '+ 2'
 SUCCEEDS
-parsing '+ 3':
-SUCCEEDS: ERROR[expected fail]
-parsing '+ 3':
-SUCCEEDS: (A n:3)
-parsing '+ 3':
+parsing sample '+ 3':
+ERROR[succeeds but expected fail:
+  result->(A n:3)]
+parsing sample '+ 4':
+parsing formatted result '+ 4'
+SUCCEEDS: (A n:4)
+parsing sample '+ 5':
+parsing formatted result '+ 5'
 SUCCEEDS
-parsing '+ 3':
-SUCCEEDS: ERROR[no match:
+parsing sample '+ 6':
+parsing formatted result '+ 6'
+SUCCEEDS
+ERROR[expected and actual result do not match:
   expected-> testing
-  actual->   (A n:3)
+  actual->   (A n:6)
   ]
-parsing '- 3':
--FAILS: ERROR[expected success]
-  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+parsing sample '@ 7':
+FAILS: ERROR[expected success]
+  ERROR: 1.1:unexpected character: '@'
 1 errors.
-parsing '- 3':
--FAILS: ERROR[expected success]
-  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+parsing sample '- 8':
+FAILS: ERROR[expected success]
+  ERROR: 1.1:unexpected character: '-'
 1 errors.
-parsing '- 3':
--FAILS [as expected]
-parsing '- 3':
--FAILS: ERROR[expected success]
-  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+parsing sample '- 9':
+FAILS [as expected]
+parsing sample '- 10':
+FAILS: ERROR[expected success]
+  ERROR: 1.1:unexpected character: '-'
 1 errors.
-parsing '- 3':
--FAILS: ERROR[expected testing]
-  ERROR: 1.1-3:syntax error, unexpected integer literal, expecting `+`
+parsing sample '- 11':
+FAILS: ERROR[expected testing]
+  ERROR: 1.1:unexpected character: '-'
 1 errors.
 Errors: 6

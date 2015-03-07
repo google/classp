@@ -1,9 +1,8 @@
 /*
  * This file is a part of the Classp parser, formatter, and AST generator.
- * Author: David Gudeman
  * Description: Functions to generate the parser (the bison code).
  *
- * Copyright 015 Google Inc.
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,29 +82,7 @@ struct RuleInfo {
       }
     }
   }
-#if 0
-  // Return the precedence for the first element in a list.
-  Precedence PrecedenceFirst() {
-    if (assoc != AssocLeft) {
-      return rule_info->next_precedence;
-    } else if (precedence == min) {
-        return 0;
-    } else {
-      return precedence;
-    }
-  }
 
-  // Return the precedence for the last element in a list;
-  Precedence PrecedenceLast() {
-    if (assoc != AssocRight) {
-      return rule_info->next_precedence;
-    } else if (precedence == min) {
-        return 0;
-    } else {
-      return precedence;
-    }
-  }
-#endif
   // Adds a position argument attribute at position.
   void AddPositionalArg(int position, ParseTreeAttribute* attribute) {
     assert(attribute);
@@ -115,6 +92,39 @@ struct RuleInfo {
   // Adds a keword map at position in the current positional parameters.
   void AddKeywordArgs(int position) {
     positional_matches.emplace_back(position, nullptr);
+  }
+
+  Precedence GetPrecedence(int position, bool is_last) {
+    if (precedence >= 0) {
+      // Suppose we have a simple language that has, among other operators, the
+      // following that all have the same precedence:
+      //   '+' %left 5
+      //   '<' %nonassoc 5
+      //   '!' %right 5
+      //   '?' ':' %left 5
+      // The rules for Expr5 look like this:
+      //   Expr5:
+      //       Expr5 '+' Expr4;
+      //     | Expr4 '<' Expr4;
+      //     | Expr4 '!' Expr5;
+      //     | Expr5 '?' Expr ':' Expr4
+      //     ;
+      // The classes at the beginning and end get a precedence based on the
+      // current precedence. Any classes that are not the very first thing or
+      // the very last thing in the rule get precedence 0 (which is Expr).
+      if (position == 1) {
+        if (assoc != AssocLeft) {
+          return next_precedence;
+        }
+      } else if (is_last) {
+        if (assoc != AssocRight) {
+          return next_precedence;
+        }
+      } else {
+        return -1;
+      }
+    }
+    return precedence;
   }
 
   ostream& stream;
@@ -147,13 +157,10 @@ void ParseTreeClassDecl::GenerateProductions() {
   // The stream where the class parsing rule is constructed.
   stringstream out;
 
-  // Generate the production for recognizing the class.
-  if (has_precedence) {
-    // Generate rules that are specific to this production.
-    if (is_parsed) GeneratePrecedenceProductions(out);
-  } else if (is_parsed &&
-             (syntax_list.size() > 0 || parsing_subclasses.size() > 0)) {
-    GenerateSingleProduction(out);
+  if (is_parsed) {
+    // Generate the production for recognizing the class.
+    if (has_precedence) GeneratePrecedenceProductions(out);
+    else GenerateSingleProduction(out);
   }
   parser->rules_[rule_pos] = out.str();
 }
@@ -178,6 +185,28 @@ void ParseTreeClassDecl::GenerateSingleProduction(ostream& out) {
   const string nonterminal = parser->GetTypeMatcher(class_name);
   out << nonterminal;
   const char* separator = "\n  : ";
+#if 1
+  if (parsing_syntax.empty()) {
+    Error(StringPrintf(
+        "class '%s' is parsed but does not have syntax or any subclass with syntax.",
+        class_name.c_str()));
+  }
+  for (auto syntax : parsing_syntax) {
+    out << separator;
+    syntax->GenerateSyntaxRule(out, precedences);
+    if (syntax->class_def != this) {
+      out << "  // " << syntax->class_def->class_name;
+    }
+    separator = "\n  | ";
+  }
+#else
+  // This code is for exploration. It generates rules that use subclass
+  // productions instead of adding all rules in a single production.
+  if (syntax_list.empty() && parsing_subclasses.empty()) {
+    Error(StringPrintf(
+        "class '%s' is parsed but does not have syntax or any subclass with syntax.",
+        class_name.c_str()));
+  }
   for (auto syntax : syntax_list) {
     out << separator;
     syntax->GenerateSyntaxRule(out, precedences);
@@ -189,6 +218,7 @@ void ParseTreeClassDecl::GenerateSingleProduction(ostream& out) {
                 << " { $$ = $1; }";
     separator = "\n  | ";
   }
+#endif
   out << "\n  ;\n";
 }
 
@@ -221,32 +251,31 @@ void ParseTreeClassDecl::GeneratePrecedenceProductions(ostream& out) {
   // the example above, then no precedences were assigned to it and we do not
   // generate a production for it.
 
-  // Sort the syntaxes by precedence.
-  multimap<Precedence, ParseTreeSyntaxDecl*> syntaxes;
-  AddAllSyntaxes(&syntaxes);
-  if (syntaxes.empty()) return;
+  if (parsing_syntax.empty()) return;
 
   // Now generate individual productions for each syntax.
   const string nonterminal = parser->GetTypeMatcher(class_name);
-  Precedence current_precedence = syntaxes.begin()->first;
+  Precedence current_precedence = (*parsing_syntax.begin())->precedence;
   out << nonterminal;
   const char* separator = "\n  : ";
-  for (auto elem : syntaxes) {
-    if (current_precedence != elem.first) {
-      // We have found a new precedence in the list, so end the previous
+  for (auto syntax : parsing_syntax) {
+    if (current_precedence != syntax->precedence) {
+      // parsing_syntax is ordered by precedence. If we are here then
+      // we have found a new precedence in the list, so end the previous
       // production and start a new one for the new precedence. Before ending
       // the previous production, add the ending rule that parses the next
       // precedence.
-      out << separator << PrecedenceNonterminal(nonterminal, elem.first)
+      assert(current_precedence < syntax->precedence);
+      current_precedence = syntax->precedence;
+      out << separator << PrecedenceNonterminal(nonterminal, current_precedence)
                   << " { $$ = $1; }\n  ;\n"
-                  << PrecedenceNonterminal(nonterminal, elem.first);
-      current_precedence = elem.first;
+                  << PrecedenceNonterminal(nonterminal, current_precedence);
       separator = "\n  : ";
     }
     out << separator;
-    elem.second->GenerateSyntaxRule(out, precedences);
-    if (elem.second->class_def != this) {
-      out << "  // " << elem.second->class_def->class_name;
+    syntax->GenerateSyntaxRule(out, precedences);
+    if (syntax->class_def != this) {
+      out << "  // " << syntax->class_def->class_name;
     }
     separator = "\n  | ";
   }
@@ -307,29 +336,35 @@ void ParseTreeClassDecl::GenerateAction(RuleInfo* rule_info) {
     }
   }
 
+  if (!has_keywords && has_keyword_arg) {
+    // There were no keyword args from the production but the constructor does
+    // have a keyword arg so create a new map to pass to the constructor. This
+    // map may also be used for positional parameters below.
+    rule_info->stream
+        << "\n      AttributeMap keywords = AttributeMap();";
+  }
+
   // Add any positional matches that are not in the constructor to the keywords.
   for (const auto& elem : rule_info->positional_matches) {
     if (elem.second != nullptr && !elem.second->is_required) {
-      if (!has_keywords) {
-        rule_info->stream
-            << "\n      AttributeMap keywords = AttributeMap();";
-        has_keywords = true;
-      }
+      has_keywords = true;
       rule_info->stream << "\n      keywords.Add(\""
           << elem.second->attribute_name << "\", $" << elem.first << ");";
     }
   }
 
+  // If the rule produced any keyword arguments, then the constructor must have
+  // a keyword arg.
+  assert(has_keyword_arg || !has_keywords);
+
   // Generate the constructor call.
   rule_info->stream << "\n      $$ = new ";
-  GenerateConstructorCall(rule_info->stream, rule_info->positional_matches,
-                          has_keywords);
+  GenerateConstructorCall(rule_info->stream, rule_info->positional_matches);
   rule_info->stream << "; }";
 }
 
 void ParseTreeClassDecl::GenerateConstructorCall(
-    ostream& stream, const PositionalMatches& positional_matches,
-    bool has_keywords) {
+    ostream& stream, const PositionalMatches& positional_matches) {
 
   // Create a map mapping parameters to their positions in the rule.
   map<ParseTreeAttribute*, int> params;
@@ -343,13 +378,16 @@ void ParseTreeClassDecl::GenerateConstructorCall(
     const auto& elem = params.find(attr);
     if (elem != params.end()) {
       stream << ", $" << elem->second;
+    } else if (attr->is_array) {
+      stream << ", {}";
+    } else {
+      parser->Error(StringPrintf(
+          "Syntax for '%s' does not define required attribute '%s'.",
+          class_name.c_str(), attr->attribute_name.c_str()));
     }
   }
-  if (has_keywords) {
-    assert(optional_params.size() > 0);
+  if (has_keyword_arg) {
     stream << ", keywords";
-  } else if (optional_params.size() > 0) {
-    stream << ", nullptr";
   }
   stream << ")";
 }
@@ -401,37 +439,7 @@ int ParseTreeBinop::GenerateMatcher(RuleInfo* rule_info, int position,
 
 int ParseTreeAttribute::GenerateMatcher(RuleInfo* rule_info, int position,
                                         bool is_last) {
-  int precedence = rule_info->precedence;
-  if (precedence >= 0) {
-    // Suppose we have a simple language that has, among other operators, the
-    // following that all have the same precedence:
-    //   '+' %left 5
-    //   '<' %nonassoc 5
-    //   '!' %right 5
-    //   '?' ':' %left 5
-    // The rules for Expr5 look like this:
-    //   Expr5:
-    //       Expr5 '+' Expr4;
-    //     | Expr4 '<' Expr4;
-    //     | Expr4 '!' Expr5;
-    //     | Expr5 '?' Expr ':' Expr4
-    //     ;
-    // The classes at the beginning and end get a precedence based on the
-    // current precedence. Any classes that are not the very first thing or
-    // the very last thing in the rule get precedence 0 (which is Expr).
-
-    if (position == 1) {
-      if (rule_info->assoc != AssocLeft) {
-        precedence = rule_info->next_precedence;
-      }
-    } else if (is_last) {
-      if (rule_info->assoc != AssocRight) {
-        precedence = rule_info->next_precedence;
-      }
-    } else {
-      precedence = -1;
-    }
-  }
+  int precedence = rule_info->GetPrecedence(position, is_last);
   string nonterminal = parser->GetTypeMatcher(source_type, precedence);
   rule_info->stream << nonterminal;
   rule_info->AddPositionalArg(position, this);
@@ -614,9 +622,6 @@ int ParseTree::GenerateSingleArrayMatcher(RuleInfo* rule_info, int min_size,
                                           ParseTree* separator_pattern,
                                           int position) {
   string source_type = attribute->source_type;
-  string base_nonterminal = parser->GetTypeMatcher(source_type);
-  // GetTypeMatcher(source_type) above must be called before referencing
-  // type_to_nonterminal_type_[source_type].
   string nonterminal =
       parser->CreateNontermial(attribute->declare_full_type, "%Qarray%d_%s",
                                min_size, source_type.c_str());
@@ -636,15 +641,19 @@ int ParseTree::GenerateSingleArrayMatcher(RuleInfo* rule_info, int min_size,
     separator = "\n  | ";
   }
   if (min_size == 1 || separator_pattern) {
-    out << separator << base_nonterminal << "{ $$ = "
+    string left_nonterminal = parser->GetTypeMatcher(
+        source_type, rule_info2.GetPrecedence(1, false));
+    out << separator << left_nonterminal << " { $$ = "
                 << attribute->full_type
                 << "(); $$.emplace_back($1); }";
     separator = "\n  | ";
   }
+  string right_nonterminal = parser->GetTypeMatcher(
+      source_type, rule_info2.GetPrecedence(2, true));
   out << separator << nonterminal << " ";
   int position2 = GenerateTreeMatcher(separator_pattern, &rule_info2, 2, false);
-  out << " " << base_nonterminal << " { $$ = $1; $$.emplace_back($"
-              << position2 << "); }\n";
+  out << " " << right_nonterminal << " { $$ = $1; $$.emplace_back($"
+              << position2 << "); }\n  ;\n";
   parser->rules_.emplace_back(out.str());
 
   return position + 1;
@@ -691,7 +700,7 @@ int ParseTree::GenerateMultiArrayMatcher(RuleInfo* rule_info, int min_size,
     for (const auto& elem : rule_info2.positional_matches) {
       out
           << "\n      $$.Push<" << elem.second->declare_base_type << ">(\""
-          << elem.second->attribute_name << "\", " << elem.first << ");";
+          << elem.second->attribute_name << "\", $" << elem.first << ");";
     }
     out << " }";
     separator = "\n  | ";
@@ -754,7 +763,7 @@ int ParseTree::GenerateAltIteratorMatcher(RuleInfo* rule_info, int min_size,
   RuleInfo rule_info3(out, rule_info);
   position2 = GenerateTreeMatcher(separator_pattern, &rule_info3, 2, false);
   out << alt_nonterminal;
-  out << " { $$ = $1; $$->Merge($" << position2 << "); }";
+  out << " { $$ = $1; $$.Merge($" << position2 << "); }";
 
   out << "\n  ;\n";
   parser->rules_.emplace_back(out.str());

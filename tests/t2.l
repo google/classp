@@ -3,6 +3,7 @@
 
 #define t2_LEX_CC_
 
+#include <cctype>
 #include <memory>
 #include <string>
 #include <iostream>
@@ -13,7 +14,6 @@
 namespace t2 {
 
 class AstNode;
-class ParseDriver;
 
 // ParseDriver initiates a parse and contains the state data used during a
 // single parsing session (that is, during the parse of one file or string).
@@ -25,8 +25,7 @@ class ParseDriver : public yyFlexLexer {
   // A function used by the lexer to report errors.
   void Error(const YYParser::location_type& loc, const std::string& msg);
   void Error(const std::string& msg);
-  void Fatal[[noreturn]](const YYParser::location_type& loc,
-                         const std::string& msg);
+  void Fatal(const YYParser::location_type& loc, const std::string& msg);
   void LexerError(const char* msg) override;
   void LexerError(const string& msg) { LexerError(msg.c_str()); }
 
@@ -119,6 +118,7 @@ true {
 \] { return YYParser::make_SYM__1(yylloc); }
 bar { return YYParser::make_WORD_bar(yylloc); }
 just { return YYParser::make_WORD_just(yylloc); }
+still { return YYParser::make_WORD_still(yylloc); }
 x { return YYParser::make_WORD_x(yylloc); }
 y { return YYParser::make_WORD_y(yylloc); }
 z { return YYParser::make_WORD_z(yylloc); }
@@ -188,6 +188,15 @@ z { return YYParser::make_WORD_z(yylloc); }
     return YYParser::make_TOK_IDENTIFIER(YYText(), yylloc);
   }
 
+  /* Any other character. */
+.  {
+    if (isprint(YYText()[0])) {
+      LexerError(string("unexpected character: '") + YYText() + "'");
+    } else {
+      LexerError("unexpected character: " + std::to_string(YYText()[0]));
+    }
+  }
+
 %%
 
 namespace t2 {
@@ -195,11 +204,16 @@ namespace t2 {
 using std::istream;
 using std::ostream;
 
+class FatalParseError {};
+
 AstNode* parse(istream& input, ostream& errors) {
   ParseDriver parser(input, errors);
   AstNode* result = nullptr;
   YYParser yyparser(&parser, &result);
-  if (yyparser.parse() || parser.numErrors() > 0) {
+  int ret_val = 1;
+  try { ret_val = yyparser.parse(); }
+  catch (FatalParseError) {}
+  if (ret_val || parser.numErrors() > 0) {
     errors << parser.numErrors() << " errors.\n";
     return nullptr;
   }
@@ -233,19 +247,19 @@ ParseDriver::~ParseDriver() {
 
 void ParseDriver::Error(
     const YYParser::location_type& loc, const std::string& msg) {
-  errors_ << "ERROR: " << loc << ":" << msg << "\n";
+  errors_ << "ERROR: " << loc << ":" << msg << std::endl;
   num_errors_++;
 }
 
 void ParseDriver::Error(const std::string& msg) {
-  errors_ << "ERROR: " << msg << "\n";
+  errors_ << "ERROR: " << msg << std::endl;
   num_errors_++;
 }
 
 void ParseDriver::Fatal(
     const YYParser::location_type& loc, const std::string& msg) {
-  errors_ << "FATAL: " << loc << ":" << msg << "\n";
-  exit(1);
+  Error(loc, msg);
+  throw FatalParseError();
 }
 
 void ParseDriver::LexerError(const char* msg) {

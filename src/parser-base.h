@@ -1,11 +1,10 @@
 /*
  * This file is a part of the Classp parser, formatter, and AST generator.
- * Author: David Gudeman
  * Description: ParserBase is the state object used by the parser and the
  *  various tree traversals. This class also controls the printing of the
  *  output.
  *
- * Copyright 015 Google Inc.
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,12 +49,12 @@ class ParserBase {
   void Fatal[[noreturn]](const yyParser::location_type& loc,
                          const std::string& msg);
 
-  // Set the start symbol.
+  // Sets the start symbol.
   void AddStart(ParseTreeClassDecl* start_class);
 
   void AddSample(const string& class_name, ParseTreeSample* sample);
 
-  // Add a class to the list of classes that have productions.
+  // Adds a class to the list of classes that have productions.
   void AddClassProduction(ParseTreeClassDecl* c);
 
   void AddCodePrefix(const string& code) { code_prefix_ = code; }
@@ -214,7 +213,7 @@ class ParserBase {
   ParseTreeClassDecl* start_class_ = nullptr;
 
   // A list of classes that we need to create productions for.
-  vector<ParseTreeClassDecl*> class_productions;
+  vector<ParseTreeClassDecl*> class_productions_;
 };
 
 string PrecedenceNonterminal(const string& nonterminal, int prec);

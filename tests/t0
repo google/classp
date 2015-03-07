@@ -1,4 +1,0 @@
-class CasePattern {
-  optional int foo;
-  int exprs[];
-}

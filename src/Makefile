@@ -3,8 +3,10 @@ OFILES=formatter-generator.o lexer-base.o parse-tree.o cpp11-generator.o \
   classp.yacc.o classp.lex.o
 CCFILES=${OFILES:.o=.cc}
 YHEADERS=classp.yacc.hh location.hh stack.hh position.hh
-GENERATE_TESTS=t1 t2 t3 t4 t5 t6 t7 t8 t9 prec1 assign1 example1 example2 classp_lang
-SAMPLES_TESTS=samples t1 t2 t3 t4 t5 assign1 example1 example2
+GENERATE_TESTS=t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 \
+    prec1 prec2 prec4 assign1 example1 example2 classp_lang expr1
+SAMPLES_TESTS=samples t1 t2 t3 t4 t5 t11 \
+    assign1 example1 example2 expr1 prec2 prec4
 SKELETON_FILES=skeleton.h skeleton.y skeleton.l
 
 c=-g
@@ -37,54 +39,30 @@ skeleton-generator.h : skeleton.sed $(SKELETON_FILES)
 	sed -f skeleton.sed $(SKELETON_FILES) >$@
 
 #
-# the +skeleton+.[hlu] were originally generated from +skeleton+.classp by the
-# parser but are now edited by hand. The following rules are used to make sure
-# that the generation continues to work. It's both a fallback tool and an
-# extra check on code generation.
+# Testing
 #
-GEN_DIR=generated-skeleton-files
-GEN_FILES=$(GEN_DIR)/+skeleton+.h $(GEN_DIR)/+skeleton+.l $(GEN_DIR)/+skeleton+.y
-
-$(GEN_FILES): +skeleton+.classp classp
-	mkdir -p $(GEN_DIR) && cp --no-preserve=all +skeleton+.classp $(GEN_DIR)
-	$(CLASSP) $(GEN_DIR)/+skeleton+.classp
-
-check-gen: $(GEN_FILES)
-	@echo 'checking skeleton generation'
-	@diff -q +skeleton+.h $(GEN_DIR)/+skeleton+.h ;\
-	  diff -q +skeleton+.l $(GEN_DIR)/+skeleton+.l ;\
-	  diff -q +skeleton+.y $(GEN_DIR)/+skeleton+.y
-
-DIFF_CMD=diff -y --suppress-common-lines
-diff-gen:
-	$(DIFF_CMD) +skeleton+.h $(GEN_DIR)/+skeleton+.h ; true
-	$(DIFF_CMD) +skeleton+.l $(GEN_DIR)/+skeleton+.l ; true
-	$(DIFF_CMD) +skeleton+.y $(GEN_DIR)/+skeleton+.y ; true
-
-copy-generated-files:
-	cp $(GEN_FILES) .
-
-#
-# Installation, testing, and cleaning
-#
-install: $(INSTALL_DIR)/classp
-
-$(INSTALL_DIR)/classp: checked_build
-	cp classp $(INSTALL_DIR)
-
 tests: checked_build
 	./test.sh $(GENERATE_TESTS) -rc samples
 
 samples: checked_build
 	./test.sh -r $(SAMPLES_TESTS)
 
+update-all-generate-tests: tests
+	./test.sh -U $(GENERATE_TESTS) samples
+
+#
+# Installation and cleaning
+#
+install: $(INSTALL_DIR)/classp
+
+$(INSTALL_DIR)/classp: checked_build
+	cp classp $(INSTALL_DIR)
 
 clean:
 	rm -f classp $(OFILES) classp.lex.cc classp.yacc.cc $(YHEADERS) *.d \
     skeleton-generator.h
-	rm -rf $(GEN_DIR)
 
-.PHONY: checked_build install clean check-gen diff-gen copy-generated-files
+.PHONY: checked_build install clean tests samples update-all-generate-tests
 
 # Dependency management
 $(OFILES) : $(YHEADERS)

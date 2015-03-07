@@ -50,6 +50,7 @@ class C;
 %token SYM__1 "`]`"
 %token WORD_bar "`bar`"
 %token WORD_just "`just`"
+%token WORD_still "`still`"
 %token WORD_x "`x`"
 %token WORD_y "`y`"
 %token WORD_z "`z`"
@@ -64,7 +65,6 @@ class C;
 /* BEGIN NONTERMINAL TYPES */
 %type <A*> class_A
 %type <B*> class_B
-%type <C*> class_C
 /* END NONTERMINAL TYPES */
 
 %type <bool> TOK_BOOL
@@ -104,8 +104,21 @@ class_A
       AttributeMap keywords = AttributeMap();
       keywords.Add("x", $2);
       $$ = new A(@$, keywords); }
-  | class_B { $$ = $1; }
-  | class_C { $$ = $1; }
+  |  WORD_still TOK_INT64 {
+      AttributeMap keywords = AttributeMap();
+      keywords.Add("x", $2);
+      $$ = new A(@$, keywords); }
+  |  WORD_x TOK_INT64 WORD_y TOK_BOOL {
+      AttributeMap keywords = AttributeMap();
+      keywords.Add("x", $2);
+      keywords.Add("y", $4);
+      $$ = new B(@$, keywords); }  // B
+  |  WORD_bar class_B { $$ = $2; }  // B
+  |  WORD_x TOK_INT64 WORD_z TOK_INT64 {
+      AttributeMap keywords = AttributeMap();
+      keywords.Add("x", $2);
+      keywords.Add("z", $4);
+      $$ = new C(@$, keywords); }  // C
   ;
 
 class_B
@@ -117,13 +130,6 @@ class_B
   |  WORD_bar class_B { $$ = $2; }
   ;
 
-class_C
-  :  WORD_x TOK_INT64 WORD_z TOK_INT64 {
-      AttributeMap keywords = AttributeMap();
-      keywords.Add("x", $2);
-      keywords.Add("z", $4);
-      $$ = new C(@$, keywords); }
-  ;
 
 /* END PRODUCTIONS */
 
@@ -145,6 +151,9 @@ A::A(ParseState parseState, AttributeMap& keyword_args)
   has_x = keyword_args.Take("x", x);
 }
 
+A* A::parse(istream& input, ostream& errors) {
+  return dynamic_cast<A*>(t2::parse(input, errors));
+}
 void A::printMembers(ostream& out) {
   if (has_x) {
     out << " x:";
@@ -155,7 +164,8 @@ void A::printMembers(ostream& out) {
 }
 
 void A::format(ostream& out, int precedence) {
-  out << " just ";
+  out << "just";
+  out << " ";
   classpFormat(out, 0, x);
 }
 B::B(ParseState parseState, AttributeMap& keyword_args)
@@ -175,9 +185,12 @@ void B::printMembers(ostream& out) {
 }
 
 void B::format(ostream& out, int precedence) {
-  out << " x ";
+  out << "x";
+  out << " ";
   classpFormat(out, 0, x);
-  out << " y ";
+  out << " ";
+  out << "y";
+  out << " ";
   classpFormat(out, 0, y);
 }
 C::C(ParseState parseState, AttributeMap& keyword_args)
@@ -197,9 +210,12 @@ void C::printMembers(ostream& out) {
 }
 
 void C::format(ostream& out, int precedence) {
-  out << " x ";
+  out << "x";
+  out << " ";
   classpFormat(out, 0, x);
-  out << " z ";
+  out << " ";
+  out << "z";
+  out << " ";
   classpFormat(out, 0, z);
 }
 /* END METHOD DEFINITIONS */
@@ -208,7 +224,7 @@ void C::format(ostream& out, int precedence) {
 
 void ParseAndPrint(istream& input, ostream& out) {
 /* BEGIN PARSE PARSEABLE */
-  AstNode* result = nullptr;
+  AstNode* result = A::parse(input, out);
 /* END PARSE PARSEABLE */
   if (result) {
     out << "Succeeded:\n";
@@ -233,22 +249,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -272,6 +311,14 @@ int ParseSample(const char* sample, const char* expected_result = kPrint) {
 int ParseSamples() {
   int num_errors = 0;
 /* BEGIN SAMPLES */
+  num_errors += ParseSample<A>(R"#A#(just 5)#A#", R"#A#((A x:5))#A#");
+  num_errors += ParseSample<A>(R"#A#((still 5))#A#", R"#A#((A x:5))#A#");
+  num_errors += ParseSample<A>(R"#A#(((just 5)))#A#", R"#A#((A x:5))#A#");
+  num_errors += ParseSample<A>(R"#A#([(just 5)])#A#", R"#A#((A x:5))#A#");
+  num_errors += ParseSample<A>(R"#A#(x 3 y true)#A#", R"#A#((B x:3 y:true))#A#");
+  num_errors += ParseSample<A>(R"#A#(([(x 3 y true)]))#A#", R"#A#((B x:3 y:true))#A#");
+  num_errors += ParseSample<A>(R"#A#(([(bar x 3 y true)]))#A#", R"#A#((B x:3 y:true))#A#");
+  num_errors += ParseSample<A>(R"#A#(x 3 z 4)#A#", R"#A#((C x:3 z:4))#A#");
 /* END SAMPLES */
   std::cout << "Errors: " << num_errors << "\n";
   return num_errors;
@@ -299,7 +346,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (t2::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

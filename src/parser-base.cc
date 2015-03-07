@@ -1,9 +1,8 @@
 /*
  * This file is a part of the Classp parser, formatter, and AST generator.
- * Author: David Gudeman
  * Description: Implementation of ParserBase.
  *
- * Copyright 015 Google Inc.
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +50,7 @@ void ParserBase::AddSample(const string& class_name, ParseTreeSample* sample) {
 void ParserBase::AddClassProduction(ParseTreeClassDecl* c) {
   if (c->production_required) return;
   c->production_required = true;
-  class_productions.push_back(c);
+  class_productions_.push_back(c);
   AddParsedType(c->class_name, ClassDeclareType(c->class_name));
 }
 
@@ -94,8 +93,8 @@ ParseTree* ParserBase::Parse() {
           class_defs_.emplace_back(class_def_stream.str());
         }
       }
-      if (!start_class_ && !class_productions.empty()) {
-        start_class_ = class_productions[0];
+      if (!start_class_ && !class_productions_.empty()) {
+        start_class_ = class_productions_[0];
       }
     }
   }
@@ -135,6 +134,11 @@ void ParserBase::PrintTokenDeclarations(ostream& out) {
 }
 
 void ParserBase::PrintNonterminalTypes(ostream& out) {
+  for (auto class_def : class_productions_) {
+    assert(class_def->production_required);
+    out << "%type <" << ClassDeclareType(class_def->class_name)
+        << "> " << type_to_nonterminal_[class_def->class_name] << "\n";
+  }
   for (auto elem : nonterminal_to_tag_) {
     if (token_name_to_definition_.count(elem.first) == 0) {
       out << "%type <" << tag_to_nonterminal_type_[elem.second]
@@ -232,11 +236,15 @@ void ParserBase::AddParsedType(const string& type_name,
     ParseTreeClassDecl* class_decl = GetClassDecl(type_name);
     if (class_decl) {
       nonterminal = "class_" + type_name;
+      token_name_to_definition_[nonterminal] = "/* class */";
+      AddClassProduction(class_decl);
       class_decl->is_parsed = true;
     } else {
       // A user-defined type
+      Error(StringPrintf("No way to parse user-defined type '%s'",
+                        type_name.c_str()));
       nonterminal = "UTOK_" + type_name;
-      token_name_to_definition_["TOK_IDENTIFIER"] = "/* user defined */";
+      token_name_to_definition_[nonterminal] = "/* user defined */";
       return;
     }
   }

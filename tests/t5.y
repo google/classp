@@ -58,14 +58,14 @@ class Query;
 
 
 /* BEGIN NONTERMINAL TYPES */
+%type <Query*> class_Query
+%type <Expression*> class_Expression
 %type <AttributeMap> alt_Query__1
 %type <AttributeMap> alt_Query__2
 %type <AttributeMap> alt_Query__3
 %type <vector<Expression*>> array1_Expression__1
 %type <vector<Expression*>> array1_Expression__2
 %type <vector<Expression*>> array1_Expression__3
-%type <Expression*> class_Expression
-%type <Query*> class_Query
 /* END NONTERMINAL TYPES */
 
 %type <bool> TOK_BOOL
@@ -107,12 +107,14 @@ class_Query
   ;
 
 array1_Expression__1
-  : class_Expression{ $$ = vector<Expression*>(); $$.emplace_back($1); }
+  : class_Expression { $$ = vector<Expression*>(); $$.emplace_back($1); }
   | array1_Expression__1 TOK_COMMA class_Expression { $$ = $1; $$.emplace_back($3); }
+  ;
 
 array1_Expression__2
-  : class_Expression{ $$ = vector<Expression*>(); $$.emplace_back($1); }
+  : class_Expression { $$ = vector<Expression*>(); $$.emplace_back($1); }
   | array1_Expression__2 TOK_COMMA class_Expression { $$ = $1; $$.emplace_back($3); }
+  ;
 
 alt_Query__1
   :  WORD_FROM  array1_Expression__2 {
@@ -131,8 +133,9 @@ alt_Query__2
   ;
 
 array1_Expression__3
-  : class_Expression{ $$ = vector<Expression*>(); $$.emplace_back($1); }
+  : class_Expression { $$ = vector<Expression*>(); $$.emplace_back($1); }
   | array1_Expression__3 TOK_COMMA class_Expression { $$ = $1; $$.emplace_back($3); }
+  ;
 
 alt_Query__3
   :  WORD_GROUP WORD_BY  array1_Expression__3 {
@@ -189,31 +192,40 @@ void Query::printMembers(ostream& out) {
 }
 
 void Query::format(ostream& out, int precedence) {
-  out << " SELECT ";
+  out << "SELECT";
+  out << " ";
   for (size_t i = 0; i < select_list.size(); i++) {
     if (i > 0) {
-      out << " , ";
+      out << ",";
     }
     classpFormat(out, 0, select_list[i]);
   }
+  out << " ";
   if ((!from_list.empty())) {
-    out << " FROM ";
+    out << "FROM";
+    out << " ";
     for (size_t i = 0; i < from_list.size(); i++) {
       if (i > 0) {
-        out << " , ";
+        out << ",";
       }
       classpFormat(out, 0, from_list[i]);
     }
   }
+  out << " ";
   if (has_where_clause) {
-    out << " WHERE ";
+    out << "WHERE";
+    out << " ";
     classpFormat(out, 0, where_clause);
   }
+  out << " ";
   if ((!group_by.empty())) {
-    out << " GROUP " << "BY ";
+    out << "GROUP";
+    out << " ";
+    out << "BY";
+    out << " ";
     for (size_t i = 0; i < group_by.size(); i++) {
       if (i > 0) {
-        out << " , ";
+        out << ",";
       }
       classpFormat(out, 0, group_by[i]);
     }
@@ -263,22 +275,45 @@ template<class T>
 int ParseSample(const char* sample, const char* expected_result = kPrint) {
   stringstream input(sample);
   stringstream errors;
-  std::cout << "parsing '" << sample << "':\n";
+  std::cout << "parsing sample '" << sample << "':\n";
   AstNode* result = T::parse(input, errors);
   if (result) {
-    std::cout << "SUCCEEDS";
+    stringstream actual_result;
+    result->print(actual_result);
+    if (expected_result == kFail) {
+      std::cout << "ERROR[succeeds but expected fail:\n"
+          << "  result->" << actual_result.str() << "]\n";
+      return 1;
+    }
+
+    // Now format the output and try parsing it again.
+    stringstream formatted;
+    result->format(formatted);
+    std::cout << "parsing formatted result '" << formatted.str() << "'\n";
+    AstNode* result2 = T::parse(formatted, errors);
+    if (!result2) {
+      std::cout << "\nERROR[parsing the formatted string failed." 
+          << "\n  original parse->" << actual_result.str() << "]\n";
+      return 1;
+    }
+    stringstream actual_result2;
+    result2->print(actual_result2);
+    if (actual_result.str() != actual_result2.str()) {
+      std::cout << "ERROR[parsed formatted string does not match:"
+          << "\n  original->" << actual_result.str()
+          << "\n  parsed->  " << actual_result2.str() << "\n  ]\n";
+      return 1;
+    }
+
+    std::cout<< "SUCCEEDS";
     if (expected_result == kPrint) {
       std::cout << ": ";
       result->print(std::cout);
-    } else if (expected_result == kFail) {
-      std::cout << ": ERROR[expected fail]\n";
-      return 1;
     } else if (expected_result != kSucceed) {
-      stringstream actual_result;
-      result->print(actual_result);
       if (actual_result.str() != expected_result) {
-        std::cout << ": ERROR[no match:\n  expected-> " << expected_result
-        << "\n  actual->   " << actual_result.str() << "\n  ]\n";
+        std::cout << "\nERROR[expected and actual result do not match:"
+            << "\n  expected-> " << expected_result
+            << "\n  actual->   " << actual_result.str() << "\n  ]\n";
         return 1;
       }
     }
@@ -330,7 +365,7 @@ int main(int argc, char** argv) {
     std::cerr << usage;
     exit(1);
   }
-  if (std::string(argv[1]) == "--samples") {
+  if (argc == 2 && std::string(argv[1]) == "--samples") {
     if (t5::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;

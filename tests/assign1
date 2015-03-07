@@ -1,3 +1,21 @@
+// This file is a part of the Classp parser, formatter, and AST generator. 
+// Description: Used to generate skeleton-generator.h from the skeleton files. 
+//  
+// Copyright 2015 Google Inc. 
+//  
+// Licensed under the Apache License, Version 2.0 (the "License"); 
+// you may not use this file except in compliance with the License. 
+// You may obtain a copy of the License at 
+//  
+// http://www.apache.org/licenses/LICENSE-2.0 
+//  
+// Unless required by applicable law or agreed to in writing, software 
+// distributed under the License is distributed on an "AS IS" BASIS, 
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+// See the License for the specific language governing permissions and 
+// limitations under the License. 
+ 
+
 class B {
   bool b;
   syntax(b{true->'t'|false->'f'});
@@ -23,6 +41,6 @@ class D {
   S s;
   B2 b2;
   syntax('B' b 'I' i 'S' s 'B2' b2 'done');
-  sample('B t I two S one B2 done', '(D b:(B b:1) i:(I i:2) s:(S s:1) b2:(B2 b:0))');
-  sample('B f I one S two B2 t done', '(D b:(B b:0) i:(I i:1) s:(S s:2) b2:(B2 b:1))');
+  sample('B t I two S one B2 done', '(D b:(B b:true) i:(I i:2) s:(S s:1) b2:(B2 b:false))');
+  sample('B f I one S two B2 t done', '(D b:(B b:false) i:(I i:1) s:(S s:2) b2:(B2 b:true))');
 }
