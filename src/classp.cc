@@ -23,6 +23,8 @@
 #include <stdio.h>
 #include <fstream>
 using std::ofstream;
+#include <stdlib.h>
+#include <unistd.h>
 
 #ifdef _WIN32
 #define PATH_SEPARATOR '\\'
@@ -51,15 +53,40 @@ static void SplitFileName(const string& name, string* directory, string* base, s
 }
 
 int main(int argc, char** argv) {
-  if (argc != 2) {
-    std::cerr << "usage: classp <input-file-name>\n";
+  int opt;
+  bool build = false;
+  bool execute = false;
+  bool run_samples = false;
+  char* include_dir = nullptr;
+
+  while ((opt = getopt(argc, argv, "bxsI:")) > 0) {
+    switch (opt) {
+    case 'b': build = true; break;
+    case 'x': execute = true; break;
+    case 's': run_samples = true; break;
+    case 'I': include_dir = optarg; break;
+    case '?': exit(1);
+    }
+  }
+  if (run_samples) execute = true;
+  if (execute) build = true;
+  if (build && !include_dir) {
+    include_dir = getenv("CLASSP_INCLUDE");
+    if (!include_dir) {
+      std::cerr << "must specify an include dir if building the test program\n";
+      exit(1);
+    }
+  }
+  if (optind != argc - 1) {
+    std::cerr << "usage: classp -[bxs] [-I<include-dir>] <input-file-name>\n";
     exit(1);
   }
 
   string directory;
   string base;
   string extension;
-  SplitFileName(argv[1], &directory, &base, &extension);
+  char* filename = argv[optind];
+  SplitFileName(filename, &directory, &base, &extension);
   string base_pathname = directory + base;
 
   if (extension.size() > 0 && extension != ".classp") {
@@ -67,15 +94,15 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  FILE* fp = fopen(argv[1], "r");
+  FILE* fp = fopen(filename, "r");
   if (!fp) {
     // maybe the open failed because we have to add the .classp extension
-    if (base_pathname == argv[1]) {
+    if (base_pathname == filename) {
       string classp_name = base_pathname + ".classp";
       fp = fopen(classp_name.c_str(), "r");
     }
     if (!fp) {
-      std::cerr << "can't open " << argv[1] << "\n";
+      std::cerr << "can't open " << filename << "\n";
       exit(1);
     }
   }
@@ -93,7 +120,31 @@ int main(int argc, char** argv) {
     parser.PrintLexer(lfile);
   } else {
     std::cerr << "parse failed\n";
-    return 1;
+    exit(1);
   }
+  if (build) {
+    const int kBufSize = 1024;
+    char buf[kBufSize];
+    const char* base_name = base_pathname.c_str();
+
+    snprintf(buf, kBufSize, "bison -o %s.yacc.cc %s.y", base_name, base_name);
+    std::cerr << "executing: " << buf << "\n";
+    if (system(buf)) exit(1);
+
+    snprintf(buf, kBufSize, "flex -o %s.lex.cc %s.l", base_name, base_name);
+    std::cerr << "executing: " << buf << "\n";
+    if (system(buf)) exit(1);
+
+    snprintf(buf, kBufSize, "g++ -g -o %s.bin -std=c++11 -I%s -Wall -DPARSER_TEST %s.yacc.cc %s.lex.cc",
+        base_name, include_dir, base_name, base_name);
+    std::cerr << "executing: " << buf << "\n";
+    if (system(buf)) exit(1);
+
+    if (!execute) exit(0);
+    snprintf(buf, kBufSize, "%s.bin %s", base_name, run_samples ? "--samples" : "");
+    std::cerr << "executing: " << buf << "\n";
+    if (system(buf)) exit(1);
+  }
+
   return 0;
 }
