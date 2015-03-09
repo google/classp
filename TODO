@@ -1,5 +1,10 @@
 ** BASIC USEABILITY
 
+* The way brracketing sytnaxes are handled is wrong. Bracketing syntaxes are
+treated as inherited attributes but syntax inheritance goes the other way--from
+children to parent. The bracketing syntax should be passed down like the
+precedence is.
+
 * Parsing problem:
 class A {
   int a[];
