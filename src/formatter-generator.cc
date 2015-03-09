@@ -244,8 +244,9 @@ void ParseTreeAltList::GenerateFormatter(const FormatInfo& format_info,
     format_info.stream_ << separator << "} else {";
     semi_determined->GenerateFormatter(
         format_info, separator + "  ", is_first, is_last);
-  } else {
-    assert(empty_allowed);
+  } else if (!empty_allowed) {
+    Error("If everything in the alternate is optional, an empty alternate must be present.");
+    //assert(empty_allowed);
   }
   format_info.stream_ << separator << "}";
 }

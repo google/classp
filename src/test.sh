@@ -29,7 +29,7 @@ run_tests=0
 do_updates=0
 errors=0
 
-TESTDIR=/tmp/classparser
+TESTDIR=/tmp/classp-test
 CLASSP=`pwd`/classp
 INC=`cd ../include && pwd`
 GOLD=../tests
@@ -120,9 +120,9 @@ for f in $* ; do
       cd $TESTDIR && \
       bison -o $f.yacc.cc $f.y && \
       flex -o $f.lex.cc $f.l && \
-      g++ -g -o $f.bin -std=c++11 -I$INC -Wall -DPARSER_TEST \
+      g++ -g -o $f.exe -std=c++11 -I$INC -Wall -DPARSER_TEST \
           $f.yacc.cc $f.lex.cc && \
-      ./$f.bin --samples ; \
+      ./$f.exe --samples ; \
     ) >$TESTDIR/$f.out
     cond=$?
     if [[ -a $TESTDIR/$f.out && -a $GOLD/$f.out ]] ; then

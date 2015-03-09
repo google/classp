@@ -1,9 +1,26 @@
 This directory contains an implementation of Classp written by David Gudeman
-(dgudeman@google.com or dave.gudeman@gmail.com). Classp is a language for
-declaring abstract syntax trees (ASTs) with a special formatting language that
-automatically creates a formatter and parser for the AST. The language is
-documented in the docs subdirectory.
+(dgudeman@google.com or dave.gudeman@gmail.com).
 
+INTRODUCTION
+The Classp language is a system for writing parsers and formatters (the
+inverse of a parser) without a writing a grammar. Classp not only does not
+use a traditional grammar, it does not even use traditional grammar
+structure so it avoids the various issues related to the fact that a
+grammar is a description of the surface structure of language rather
+than a description of the logical structure that the language represents.
+
+Classp takes a radically different approach; it starts with the abstract
+syntax tree (AST) which represents the logical structure of the language.
+These ASTs are defined with classes and with inheritance, just as you would
+normally define an AST in a modern object-oriented language. Each class
+has a class pattern (hence, CLASSPattern) which says what that class looks
+like in language form. Classp turns these class patterns into a parser and
+formatter for the AST.
+
+A Classp AST description is compiled by classp into C++, Bison, and Flex.
+The language is documented in the docs subdirectory.
+
+BUILDING AND TESTING
 The source code is in the src subdirectory. It builds with Bison 3.02 or later,
 Flex 2.5.39 or later, and g++ 4.8.2.
 
@@ -19,3 +36,13 @@ classp, in the srce directory. To run tests of the code generation type
 To have some tests actually run and execute sample parses type
 
   make samples
+
+STATUS
+The system does not have any hooks for doing anything with the AST once it
+is constructed, other than formatting it or printing a tree representation.
+Essentially, this is still a demo system and not a real parsing tool.
+
+Avoid using precedence indicators on productions with array attributes. The
+grammars generated from this can cause the Bison-generated parsers to go
+into an infinite loop.
+

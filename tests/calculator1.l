@@ -1,7 +1,7 @@
 /* BEGIN LEXER */
 %{
 
-#define classp_lang_LEX_CC_
+#define calculator1_LEX_CC_
 
 #include <cctype>
 #include <memory>
@@ -9,9 +9,9 @@
 #include <iostream>
 #include <sstream>
 
-#include "classp_lang.yacc.hh"
+#include "calculator1.yacc.hh"
 
-namespace classp_lang {
+namespace calculator1 {
 
 class AstNode;
 
@@ -61,13 +61,13 @@ class ParseDriver : public yyFlexLexer {
   void operator=(const ParseDriver&) = delete;
 };
 
-}  // namespace classp_lang
+}  // namespace calculator1
 
-using classp_lang::YYParser;
+using calculator1::YYParser;
 
 #undef YY_DECL
 #define YY_DECL \
-  YYParser::symbol_type classp_lang::ParseDriver::NextToken(classp_lang::ParseDriver* parser)
+  YYParser::symbol_type calculator1::ParseDriver::NextToken(calculator1::ParseDriver* parser)
 
 typedef YYParser::token token;
 
@@ -82,7 +82,7 @@ typedef YYParser::token token;
 %option c++
 %option full
 %option noyywrap
-%option yyclass="classp_lang::ParseDriver"
+%option yyclass="calculator1::ParseDriver"
 
 %x string_literal
 %x blank
@@ -112,33 +112,12 @@ true {
 }
 
   /* BEGIN GENERATED TOKENS */
-\% { return YYParser::make_TOK_PERCENT(yylloc); }
-\%parseable { return YYParser::make_SYM__1(yylloc); }
 \( { return YYParser::make_TOK_LPAREN(yylloc); }
 \) { return YYParser::make_TOK_RPAREN(yylloc); }
 \* { return YYParser::make_TOK_STAR(yylloc); }
 \+ { return YYParser::make_TOK_PLUS(yylloc); }
-\, { return YYParser::make_TOK_COMMA(yylloc); }
-\-\> { return YYParser::make_SYM__4(yylloc); }
-\: { return YYParser::make_SYM__0(yylloc); }
-\; { return YYParser::make_TOK_SEMICOLON(yylloc); }
-\[ { return YYParser::make_SYM__2(yylloc); }
-\] { return YYParser::make_SYM__3(yylloc); }
-assoc { return YYParser::make_WORD_assoc(yylloc); }
-class { return YYParser::make_WORD_class(yylloc); }
-default { return YYParser::make_WORD_default(yylloc); }
-fail { return YYParser::make_WORD_fail(yylloc); }
-left { return YYParser::make_WORD_left(yylloc); }
-nassoc { return YYParser::make_WORD_nassoc(yylloc); }
-optional { return YYParser::make_WORD_optional(yylloc); }
-print { return YYParser::make_WORD_print(yylloc); }
-right { return YYParser::make_WORD_right(yylloc); }
-sample { return YYParser::make_WORD_sample(yylloc); }
-succeed { return YYParser::make_WORD_succeed(yylloc); }
-syntax { return YYParser::make_WORD_syntax(yylloc); }
-\{ { return YYParser::make_TOK_LBRACE(yylloc); }
-\| { return YYParser::make_TOK_BAR(yylloc); }
-\} { return YYParser::make_TOK_RBRACE(yylloc); }
+\- { return YYParser::make_TOK_MINUS(yylloc); }
+\/ { return YYParser::make_TOK_SLASH(yylloc); }
   /* END GENERATED TOKENS */
 
 <INITIAL><<EOF>>  {
@@ -216,7 +195,7 @@ syntax { return YYParser::make_WORD_syntax(yylloc); }
 
 %%
 
-namespace classp_lang {
+namespace calculator1 {
 
 using std::istream;
 using std::ostream;
@@ -289,5 +268,5 @@ void ParseDriver::Unput(char c) {
   yyunput(c, yytext);
 }
 
-}  // namespace classp_lang
+}  // namespace calculator1
 /* END LEXER */

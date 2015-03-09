@@ -20,9 +20,10 @@
 #include "parser-base.h"
 #include "lexer-base.h"
 
-#include <stdio.h>
+#include <cstring>
 #include <fstream>
 using std::ofstream;
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -52,33 +53,45 @@ static void SplitFileName(const string& name, string* directory, string* base, s
   }
 }
 
+void usage() {
+  std::cerr << "usage: classp -[bxs] [-L[ad]*] [-I<include-dir>] <input-file-name>\n";
+}
+
 int main(int argc, char** argv) {
   int opt;
-  bool build = false;
+  bool build_static_lib = false;
+  bool build_dynamic_lib = false;
+  bool build_test_exe = false;
   bool execute = false;
   bool run_samples = false;
   char* include_dir = nullptr;
 
-  while ((opt = getopt(argc, argv, "bxsI:")) > 0) {
+  while ((opt = getopt(argc, argv, "hbxsI:L:")) > 0) {
     switch (opt) {
-    case 'b': build = true; break;
+    case 'b': build_test_exe = true; break;
     case 'x': execute = true; break;
     case 's': run_samples = true; break;
     case 'I': include_dir = optarg; break;
     case '?': exit(1);
+    case 'L':
+      if (strchr(optarg, 'a')) build_static_lib = true;
+      if (strchr(optarg, 'd')) build_dynamic_lib = true;
+      break;
+    case 'h': usage(); exit(1);
     }
   }
   if (run_samples) execute = true;
-  if (execute) build = true;
-  if (build && !include_dir) {
+  if (execute) build_test_exe = true;
+  bool building = build_static_lib || build_dynamic_lib || build_test_exe;
+  if (building && !include_dir) {
     include_dir = getenv("CLASSP_INCLUDE");
     if (!include_dir) {
-      std::cerr << "must specify an include dir if building the test program\n";
+      std::cerr << "must specify an include dir when building\n";
       exit(1);
     }
   }
   if (optind != argc - 1) {
-    std::cerr << "usage: classp -[bxs] [-I<include-dir>] <input-file-name>\n";
+    usage();
     exit(1);
   }
 
@@ -122,7 +135,7 @@ int main(int argc, char** argv) {
     std::cerr << "parse failed\n";
     exit(1);
   }
-  if (build) {
+  if (building) {
     const int kBufSize = 1024;
     char buf[kBufSize];
     const char* base_name = base_pathname.c_str();
@@ -135,16 +148,38 @@ int main(int argc, char** argv) {
     std::cerr << "executing: " << buf << "\n";
     if (system(buf)) exit(1);
 
-    snprintf(buf, kBufSize, "g++ -g -o %s.bin -std=c++11 -I%s -Wall -DPARSER_TEST %s.yacc.cc %s.lex.cc",
-        base_name, include_dir, base_name, base_name);
-    std::cerr << "executing: " << buf << "\n";
-    if (system(buf)) exit(1);
+    if (build_test_exe) {
+      snprintf(buf, kBufSize, "g++ -g -o %s.exe -std=c++11 -I%s -Wall -DPARSER_TEST %s.yacc.cc %s.lex.cc",
+          base_name, include_dir, base_name, base_name);
+      std::cerr << "executing: " << buf << "\n";
+      if (system(buf)) exit(1);
 
-    if (!execute) exit(0);
-    snprintf(buf, kBufSize, "%s.bin %s", base_name, run_samples ? "--samples" : "");
-    std::cerr << "executing: " << buf << "\n";
-    if (system(buf)) exit(1);
+      if (!execute) exit(0);
+      const char* local_path = "";
+      if (base_pathname.find(PATH_SEPARATOR) == string::npos) local_path = "./";
+      snprintf(buf, kBufSize, "%s%s.exe %s", local_path, base_name, run_samples ? "--samples" : "");
+      std::cerr << "executing: " << buf << "\n";
+      if (system(buf)) exit(1);
+    }
+    if (build_static_lib) {
+      snprintf(buf, kBufSize, "g++ -c -std=c++11 -I%s -Wall -o %s.yacc.o %s.yacc.cc",
+          include_dir, base_name, base_name);
+      std::cerr << "executing: " << buf << "\n";
+      if (system(buf)) exit(1);
+      snprintf(buf, kBufSize, "g++ -c -std=c++11 -I%s -Wall -o %s.lex.o %s.lex.cc",
+          include_dir, base_name, base_name);
+      std::cerr << "executing: " << buf << "\n";
+      if (system(buf)) exit(1);
+      snprintf(buf, kBufSize, "ar rcs %s.a %s.yacc.o %s.lex.o", base_name, base_name, base_name);
+      std::cerr << "executing: " << buf << "\n";
+      if (system(buf)) exit(1);
+    }
+    if (build_dynamic_lib) {
+      snprintf(buf, kBufSize, "g++ -shared -fpic -o %slib%s.so -std=c++11 -I%s -Wall %s.yacc.cc %s.lex.cc",
+          directory.c_str(), base.c_str(), include_dir, base_name, base_name);
+      std::cerr << "executing: " << buf << "\n";
+      if (system(buf)) exit(1);
+    }
   }
-
   return 0;
 }

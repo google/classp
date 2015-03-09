@@ -315,11 +315,9 @@ int ParseSamples() {
 
 #include <fstream>
 #include <iostream>
-#include <memory>
 
 using std::istream;
 using std::ifstream;
-using std::unique_ptr;
 
 const char usage[] = "usage: prec4 [input-file | --samples]\n";
 

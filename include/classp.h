@@ -35,7 +35,7 @@ class ClasspNode {
  public:
 
   // Returns the name of this class.
-  virtual string className() { return "ClasspNode"; }
+  virtual std::string className() { return "ClasspNode"; }
 
   virtual ~ClasspNode() {}
 

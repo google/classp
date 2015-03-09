@@ -16,22 +16,26 @@
 // limitations under the License. 
  
 
-@@'enum Associativity{AssocLeft, AssocRight, AssocNassoc};'@@
+@@'
+  enum Associativity{AssocLeft, AssocRight, AssocNassoc};
+  enum SampleCheck {ExpectSucceed, ExpectFailure, PrintResult, CompareResult};
+'@@
 class Declarations {
   %parseable;
-  ClassDeclaration decl[];
+  ClassDefinition decl[];
   syntax ( decl* );
   sample("class A {%parseable;int n;syntax ('+' n);sample ('+ 3');}", print);
 }
 
-class ClassDeclaration {
+class ClassDefinition {
   identifier class_name;
   optional identifier parent_name;
   AttributeDeclaration attributes[];
-  optional SyntaxDeclaration syntax_decl;
+  SyntaxDeclaration syntax_decl[];
+  SampleDeclaration sample_decl[];
   bool parseable default false syntax(self{true->'%parseable' ';'});
   syntax ('class' class_name (':' parent_name|)
-          '{' ((attributes|syntax_decl|parseable)*) '}');
+          '{' ((attributes|syntax_decl|sample_decl|parseable)*) '}');
 }
 
 class AttributeDeclaration {
@@ -39,8 +43,9 @@ class AttributeDeclaration {
   identifier attribute_name;
   identifier type_name;
   optional Expression default_value syntax('default' self|);
+  bool is_array default false syntax(self{true->'[' ']'});
   optional SyntaxDeclaration syntax_decl syntax('syntax' '(' self ')'|);
-  syntax(is_optional type_name attribute_name default_value syntax_decl ';');
+  syntax(is_optional type_name attribute_name (default_value|is_array|) syntax_decl ';');
 }
 
 class SyntaxDeclaration {
@@ -91,3 +96,15 @@ class Expression {
   identifier id;
   syntax(id);
 }
+
+class SampleDeclaration {
+  string sample_decl;
+  optional string expected;
+  SampleCheck check default ExpectSucceed syntax(self
+      {ExpectSucceed->'succeed'
+      |ExpectFailure->'fail'
+      |PrintResult->'print'
+      |CompareResult->});
+  syntax('sample' '(' sample_decl ',' (expected|check) ')');
+}
+

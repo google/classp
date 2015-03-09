@@ -1,5 +1,7 @@
 ** BASIC USEABILITY
 
+Bug in tests/alt1
+
 * DONE (dgudeman) Parsing problem:
 class A {
   int a[];

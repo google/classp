@@ -8,7 +8,10 @@ using std::vector;
 
 /* BEGIN CODE PREFIX */
 /* begin user-included code prefix */
-enum Associativity{AssocLeft, AssocRight, AssocNassoc};
+
+  enum Associativity{AssocLeft, AssocRight, AssocNassoc};
+  enum SampleCheck {ExpectSucceed, ExpectFailure, PrintResult, CompareResult};
+
 /* end user-included code prefix */
 /* END CODE PREFIX */
 
@@ -23,7 +26,7 @@ class AstNode;
 class Alternation;
 class AttributeDeclaration;
 class CasePattern;
-class ClassDeclaration;
+class ClassDefinition;
 class Declarations;
 class Expression;
 class Iterator;
@@ -31,6 +34,7 @@ class Iterator0OrMore;
 class Iterator1OrMore;
 class Pattern;
 class PatternSequence;
+class SampleDeclaration;
 class SyntaxDeclaration;
 /* END FORWARD DECLARATIONS */
 }
@@ -62,16 +66,23 @@ class SyntaxDeclaration;
 %token TOK_RPAREN "`)`"
 %token TOK_STAR "`*`"
 %token TOK_PLUS "`+`"
-%token SYM__2 "`->`"
+%token TOK_COMMA "`,`"
+%token SYM__4 "`->`"
 %token SYM__0 "`:`"
 %token TOK_SEMICOLON "`;`"
+%token SYM__2 "`[`"
+%token SYM__3 "`]`"
 %token WORD_assoc "`assoc`"
 %token WORD_class "`class`"
 %token WORD_default "`default`"
+%token WORD_fail "`fail`"
 %token WORD_left "`left`"
 %token WORD_nassoc "`nassoc`"
 %token WORD_optional "`optional`"
+%token WORD_print "`print`"
 %token WORD_right "`right`"
+%token WORD_sample "`sample`"
+%token WORD_succeed "`succeed`"
 %token WORD_syntax "`syntax`"
 %token TOK_LBRACE "`{`"
 %token TOK_BAR "`|`"
@@ -86,19 +97,22 @@ class SyntaxDeclaration;
 
 /* BEGIN NONTERMINAL TYPES */
 %type <Declarations*> class_Declarations
-%type <ClassDeclaration*> class_ClassDeclaration
+%type <ClassDefinition*> class_ClassDefinition
 %type <AttributeDeclaration*> class_AttributeDeclaration
 %type <SyntaxDeclaration*> class_SyntaxDeclaration
+%type <SampleDeclaration*> class_SampleDeclaration
 %type <Expression*> class_Expression
 %type <Pattern*> class_Pattern
 %type <AttributeMap> alt_AttributeDeclaration__1
 %type <AttributeMap> alt_AttributeDeclaration__2
 %type <AttributeMap> alt_AttributeDeclaration__3
-%type <AttributeMap> alt_ClassDeclaration__1
-%type <AttributeMap> alt_ClassDeclaration__2
+%type <AttributeMap> alt_AttributeDeclaration__4
+%type <AttributeMap> alt_ClassDefinition__1
+%type <AttributeMap> alt_ClassDefinition__2
+%type <AttributeMap> alt_SampleDeclaration__1
 %type <AttributeMap> alt_SyntaxDeclaration__1
-%type <AttributeMap> altiterSTAR_ClassDeclaration
-%type <vector<ClassDeclaration*>> array0_ClassDeclaration__1
+%type <AttributeMap> altiterSTAR_ClassDefinition
+%type <vector<ClassDefinition*>> array0_ClassDefinition__1
 %type <vector<Pattern*>> array0_Pattern__1
 %type <vector<Pattern*>> array0_Pattern__2
 %type <Pattern*> class_Pattern_p2
@@ -106,8 +120,10 @@ class SyntaxDeclaration;
 %type <Pattern*> class_Pattern_p4
 %type <AttributeMap> multiarrayPLUS_CasePattern
 %type <Associativity> typed_Associativity__1
+%type <SampleCheck> typed_SampleCheck__1
 %type <bool> typed_bool__1
 %type <bool> typed_bool__2
+%type <bool> typed_bool__3
 /* END NONTERMINAL TYPES */
 
 %type <bool> TOK_BOOL
@@ -141,23 +157,23 @@ start
 
 /* BEGIN PRODUCTIONS */
 class_Declarations
-  :  array0_ClassDeclaration__1 {
+  :  array0_ClassDefinition__1 {
       $$ = new Declarations(@$, $1); }
   ;
 
-array0_ClassDeclaration__1
-  : { $$ = vector<ClassDeclaration*>(); }
-  | array0_ClassDeclaration__1  class_ClassDeclaration { $$ = $1; $$.emplace_back($2); }
+array0_ClassDefinition__1
+  : { $$ = vector<ClassDefinition*>(); }
+  | array0_ClassDefinition__1  class_ClassDefinition { $$ = $1; $$.emplace_back($2); }
   ;
 
-class_ClassDeclaration
-  :  WORD_class TOK_IDENTIFIER  alt_ClassDeclaration__1 TOK_LBRACE  altiterSTAR_ClassDeclaration TOK_RBRACE {
+class_ClassDefinition
+  :  WORD_class TOK_IDENTIFIER  alt_ClassDefinition__1 TOK_LBRACE  altiterSTAR_ClassDefinition TOK_RBRACE {
       AttributeMap keywords = $3;
       keywords.Merge($5);
-      $$ = new ClassDeclaration(@$, $2, keywords); }
+      $$ = new ClassDefinition(@$, $2, keywords); }
   ;
 
-alt_ClassDeclaration__1
+alt_ClassDefinition__1
   :  SYM__0 TOK_IDENTIFIER {
     $$ = AttributeMap();
     $$.Add("parent_name", $2); }
@@ -169,25 +185,28 @@ typed_bool__1
   :  SYM__1 TOK_SEMICOLON { $$ = true; }
   ;
 
-alt_ClassDeclaration__2
+alt_ClassDefinition__2
   : class_AttributeDeclaration {
     $$ = AttributeMap();
     $$.Push("attributes", $1); }
   | class_SyntaxDeclaration {
     $$ = AttributeMap();
-    $$.Add("syntax_decl", $1); }
+    $$.Push("syntax_decl", $1); }
+  | class_SampleDeclaration {
+    $$ = AttributeMap();
+    $$.Push("sample_decl", $1); }
   | typed_bool__1 {
     $$ = AttributeMap();
     $$.Add("parseable", $1); }
   ;
 
-altiterSTAR_ClassDeclaration
+altiterSTAR_ClassDefinition
   : { $$ = AttributeMap(); }
-  | altiterSTAR_ClassDeclaration  alt_ClassDeclaration__2 { $$ = $1; $$.Merge($2); }
+  | altiterSTAR_ClassDefinition  alt_ClassDefinition__2 { $$ = $1; $$.Merge($2); }
   ;
 
 class_AttributeDeclaration
-  :   alt_AttributeDeclaration__1 TOK_IDENTIFIER TOK_IDENTIFIER  alt_AttributeDeclaration__2  alt_AttributeDeclaration__3 TOK_SEMICOLON {
+  :   alt_AttributeDeclaration__1 TOK_IDENTIFIER TOK_IDENTIFIER  alt_AttributeDeclaration__2  alt_AttributeDeclaration__4 TOK_SEMICOLON {
       AttributeMap keywords = $1;
       keywords.Merge($4);
       keywords.Merge($5);
@@ -206,7 +225,7 @@ alt_AttributeDeclaration__1
     $$ = AttributeMap(); }
   ;
 
-alt_AttributeDeclaration__2
+alt_AttributeDeclaration__3
   :  WORD_default class_Expression {
     $$ = AttributeMap();
     $$.Add("default_value", $2); }
@@ -214,7 +233,21 @@ alt_AttributeDeclaration__2
     $$ = AttributeMap(); }
   ;
 
-alt_AttributeDeclaration__3
+typed_bool__3
+  :  SYM__2 SYM__3 { $$ = true; }
+  ;
+
+alt_AttributeDeclaration__2
+  :  alt_AttributeDeclaration__3 {
+    $$ = $1; }
+  | typed_bool__3 {
+    $$ = AttributeMap();
+    $$.Add("is_array", $1); }
+  |  {
+    $$ = AttributeMap(); }
+  ;
+
+alt_AttributeDeclaration__4
   :  WORD_syntax TOK_LPAREN class_SyntaxDeclaration TOK_RPAREN {
     $$ = AttributeMap();
     $$.Add("syntax_decl", $3); }
@@ -280,11 +313,11 @@ array0_Pattern__2
   ;
 
 multiarrayPLUS_CasePattern
-  :  class_Expression SYM__2 class_Pattern {
+  :  class_Expression SYM__4 class_Pattern {
       $$ = AttributeMap();
       $$.Push<Expression*>("exprs", $1);
       $$.Push<Pattern*>("patterns", $3); }
-  | multiarrayPLUS_CasePattern TOK_BAR class_Expression SYM__2 class_Pattern {
+  | multiarrayPLUS_CasePattern TOK_BAR class_Expression SYM__4 class_Pattern {
       $$ = $1;
       $$.Push("exprs", $3);
       $$.Push("patterns", $5); }
@@ -299,6 +332,28 @@ multiarrayPLUS_CasePattern
 class_Expression
   : TOK_IDENTIFIER {
       $$ = new Expression(@$, $1); }
+  ;
+
+class_SampleDeclaration
+  :  WORD_sample TOK_LPAREN TOK_STRING TOK_COMMA  alt_SampleDeclaration__1 TOK_RPAREN {
+      AttributeMap keywords = $5;
+      $$ = new SampleDeclaration(@$, $3, keywords); }
+  ;
+
+typed_SampleCheck__1
+  : WORD_succeed { $$ = ExpectSucceed; }
+  | WORD_fail { $$ = ExpectFailure; }
+  | WORD_print { $$ = PrintResult; }
+  |  { $$ = CompareResult; }
+  ;
+
+alt_SampleDeclaration__1
+  : TOK_STRING {
+    $$ = AttributeMap();
+    $$.Add("expected", $1); }
+  | typed_SampleCheck__1 {
+    $$ = AttributeMap();
+    $$.Add("check", $1); }
   ;
 
 /* END PRODUCTIONS */
@@ -316,7 +371,7 @@ using std::stringstream;
 AstNode* parse(istream& input, ostream& errors);
 
 /* BEGIN METHOD DEFINITIONS */
-Declarations::Declarations(ParseState parseState, vector<ClassDeclaration*> decl)
+Declarations::Declarations(ParseState parseState, vector<ClassDefinition*> decl)
     : AstNode(parseState)
     , decl(decl) {
 }
@@ -334,7 +389,7 @@ void Declarations::format(ostream& out, int precedence) {
     classpFormat(out, 0, decl[i]);
   }
 }
-ClassDeclaration::ClassDeclaration(ParseState parseState, identifier class_name, AttributeMap& keyword_args)
+ClassDefinition::ClassDefinition(ParseState parseState, identifier class_name, AttributeMap& keyword_args)
     : AstNode(parseState)
     , class_name(class_name) {
   if (!(keyword_args.Take("parseable", parseable))) {
@@ -342,10 +397,11 @@ ClassDeclaration::ClassDeclaration(ParseState parseState, identifier class_name,
   }
   has_parent_name = keyword_args.Take("parent_name", parent_name);
   keyword_args.Take("attributes", attributes);
-  has_syntax_decl = keyword_args.Take("syntax_decl", syntax_decl);
+  keyword_args.Take("syntax_decl", syntax_decl);
+  keyword_args.Take("sample_decl", sample_decl);
 }
 
-void ClassDeclaration::printMembers(ostream& out) {
+void ClassDefinition::printMembers(ostream& out) {
   out << " class_name:";
   classpPrint(out, class_name);
   if (has_parent_name) {
@@ -356,17 +412,15 @@ void ClassDeclaration::printMembers(ostream& out) {
     }
   out << " attributes:";
   classpPrint(out, attributes);
-  if (has_syntax_decl) {
-    out << " syntax_decl:";
-    classpPrint(out, syntax_decl);
-  } else {
-    out << "syntax_decl[not defined]";
-    }
+  out << " syntax_decl:";
+  classpPrint(out, syntax_decl);
+  out << " sample_decl:";
+  classpPrint(out, sample_decl);
   out << " parseable:";
   classpPrint(out, parseable);
 }
 
-void ClassDeclaration::format(ostream& out, int precedence) {
+void ClassDefinition::format(ostream& out, int precedence) {
   out << "class";
   out << " ";
   classpFormat(out, 0, class_name);
@@ -384,8 +438,15 @@ void ClassDeclaration::format(ostream& out, int precedence) {
       classpFormat(out, 0, attributes[i]);
     }
   }
-  if (has_syntax_decl) {
-    classpFormat(out, 0, syntax_decl);
+  if ((!syntax_decl.empty())) {
+    for (size_t i = 0; i < syntax_decl.size(); i++) {
+      classpFormat(out, 0, syntax_decl[i]);
+    }
+  }
+  if ((!sample_decl.empty())) {
+    for (size_t i = 0; i < sample_decl.size(); i++) {
+      classpFormat(out, 0, sample_decl[i]);
+    }
   }
   if (parseable != false) {
     if (parseable == true) {
@@ -405,6 +466,9 @@ AttributeDeclaration::AttributeDeclaration(ParseState parseState, identifier att
     is_optional = false;
   }
   has_default_value = keyword_args.Take("default_value", default_value);
+  if (!(keyword_args.Take("is_array", is_array))) {
+    is_array = false;
+  }
   has_syntax_decl = keyword_args.Take("syntax_decl", syntax_decl);
 }
 
@@ -421,6 +485,8 @@ void AttributeDeclaration::printMembers(ostream& out) {
   } else {
     out << "default_value[not defined]";
     }
+  out << " is_array:";
+  classpPrint(out, is_array);
   if (has_syntax_decl) {
     out << " syntax_decl:";
     classpPrint(out, syntax_decl);
@@ -441,9 +507,17 @@ void AttributeDeclaration::format(ostream& out, int precedence) {
   classpFormat(out, 0, attribute_name);
   out << " ";
   if (has_default_value) {
-    out << "default";
-    out << " ";
-    classpFormat(out, 0, default_value);
+    if (has_default_value) {
+      out << "default";
+      out << " ";
+      classpFormat(out, 0, default_value);
+    }
+  } else if (is_array != false) {
+    if (is_array == true) {
+      out << "[";
+      out << " ";
+      out << "]";
+    }
   }
   out << " ";
   if (has_syntax_decl) {
@@ -670,6 +744,63 @@ void Expression::printMembers(ostream& out) {
 void Expression::format(ostream& out, int precedence) {
   classpFormat(out, 0, id);
 }
+SampleDeclaration::SampleDeclaration(ParseState parseState, string sample_decl, AttributeMap& keyword_args)
+    : AstNode(parseState)
+    , sample_decl(sample_decl) {
+  has_expected = keyword_args.Take("expected", expected);
+  if (!(keyword_args.Take("check", check))) {
+    check = ExpectSucceed;
+  }
+}
+
+void SampleDeclaration::printMembers(ostream& out) {
+  out << " sample_decl:";
+  classpPrint(out, sample_decl);
+  if (has_expected) {
+    out << " expected:";
+    classpPrint(out, expected);
+  } else {
+    out << "expected[not defined]";
+    }
+  out << " check:";
+  classpPrint(out, check);
+}
+
+void SampleDeclaration::format(ostream& out, int precedence) {
+  out << "sample";
+  out << " ";
+  out << "(";
+  out << " ";
+  classpFormat(out, 0, sample_decl);
+  out << " ";
+  out << ",";
+  out << " ";
+  if (has_expected) {
+    classpFormat(out, 0, expected);
+  } else if (check != ExpectSucceed) {
+    if (check == ExpectSucceed) {
+      out << "succeed";
+    } else if (check == ExpectFailure) {
+      out << "fail";
+    } else if (check == PrintResult) {
+      out << "print";
+    } else if (check == CompareResult) {
+      out << "";
+    }
+  } else {
+    if (check == ExpectSucceed) {
+      out << "succeed";
+    } else if (check == ExpectFailure) {
+      out << "fail";
+    } else if (check == PrintResult) {
+      out << "print";
+    } else if (check == CompareResult) {
+      out << "";
+    }
+  }
+  out << " ";
+  out << ")";
+}
 /* END METHOD DEFINITIONS */
 
 #ifdef PARSER_TEST
@@ -778,11 +909,9 @@ int ParseSamples() {
 
 #include <fstream>
 #include <iostream>
-#include <memory>
 
 using std::istream;
 using std::ifstream;
-using std::unique_ptr;
 
 const char usage[] = "usage: classp_lang [input-file | --samples]\n";
 

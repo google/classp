@@ -28,7 +28,7 @@ class AstNode;
 class Alternation;
 class AttributeDeclaration;
 class CasePattern;
-class ClassDeclaration;
+class ClassDefinition;
 class Declarations;
 class Expression;
 class Iterator;
@@ -36,6 +36,7 @@ class Iterator0OrMore;
 class Iterator1OrMore;
 class Pattern;
 class PatternSequence;
+class SampleDeclaration;
 class SyntaxDeclaration;
 /* END FORWARD DECLARATIONS */
 
@@ -59,28 +60,28 @@ class AstNode : public classp::ClasspNode {
 class Declarations: public AstNode {
  public:
   string className() override { return "Declarations"; }
-  Declarations(ParseState parseState, vector<ClassDeclaration*> decl);
+  Declarations(ParseState parseState, vector<ClassDefinition*> decl);
   static Declarations* parse(istream& input, ostream& errors);
   void printMembers(ostream& out) override;
   void format(ostream& out, int precedence) override;
 
-  vector<ClassDeclaration*> decl;
+  vector<ClassDefinition*> decl;
 };
 
-class ClassDeclaration: public AstNode {
+class ClassDefinition: public AstNode {
  public:
-  string className() override { return "ClassDeclaration"; }
-  ClassDeclaration(ParseState parseState, identifier class_name, AttributeMap& keyword_args);
+  string className() override { return "ClassDefinition"; }
+  ClassDefinition(ParseState parseState, identifier class_name, AttributeMap& keyword_args);
   void printMembers(ostream& out) override;
   void format(ostream& out, int precedence) override;
 
   identifier class_name;
   identifier parent_name;
   vector<AttributeDeclaration*> attributes;
-  SyntaxDeclaration* syntax_decl = nullptr;
+  vector<SyntaxDeclaration*> syntax_decl;
+  vector<SampleDeclaration*> sample_decl;
   bool parseable;
   bool has_parent_name = false;
-  bool has_syntax_decl = false;
 };
 
 class AttributeDeclaration: public AstNode {
@@ -94,6 +95,7 @@ class AttributeDeclaration: public AstNode {
   identifier attribute_name;
   identifier type_name;
   Expression* default_value = nullptr;
+  bool is_array;
   SyntaxDeclaration* syntax_decl = nullptr;
   bool has_default_value = false;
   bool has_syntax_decl = false;
@@ -190,6 +192,19 @@ class Expression: public AstNode {
   void format(ostream& out, int precedence) override;
 
   identifier id;
+};
+
+class SampleDeclaration: public AstNode {
+ public:
+  string className() override { return "SampleDeclaration"; }
+  SampleDeclaration(ParseState parseState, string sample_decl, AttributeMap& keyword_args);
+  void printMembers(ostream& out) override;
+  void format(ostream& out, int precedence) override;
+
+  string sample_decl;
+  string expected;
+  SampleCheck check;
+  bool has_expected = false;
 };
 /* END CLASS DEFINITIONS */
 

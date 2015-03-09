@@ -1,0 +1,11 @@
+// This is a bug. In (a|b) it says that an empty alternate must be
+// present, but since this whole thing occurs in a higher alternation
+// that does have an empty alternate, it should work. If neither a
+// nor b is present, then print the empty alternate from the outer
+// alternation.
+class A {
+  optional int a;
+  optional int b;
+  syntax('a' ('b' (a|b)|));
+}
+

@@ -13,14 +13,17 @@ using std::vector;
 using classp::AttributeMap;
 typedef string identifier;
 
-namespace example2 {
+namespace calculator1 {
 class ParseDriver;
 class AstNode;
 /* BEGIN FORWARD DECLARATIONS */
+class Binop;
+class Diff;
+class Div;
 class Expression;
-class FunctionCall;
 class IntegerLiteral;
-class Product;
+class Negate;
+class Prod;
 class Sum;
 /* END FORWARD DECLARATIONS */
 }
@@ -32,11 +35,11 @@ class Sum;
 %define api.value.type variant
 %define "parser_class_name" {YYParser}
 %error-verbose
-%lex-param {example2::ParseDriver* parser}
+%lex-param {calculator1::ParseDriver* parser}
 %locations
-%define api.namespace {example2}
-%parse-param {example2::ParseDriver* parser}
-%parse-param {example2::AstNode** result}
+%define api.namespace {calculator1}
+%parse-param {calculator1::ParseDriver* parser}
+%parse-param {calculator1::AstNode** result}
 %define api.token.constructor
 %skeleton "lalr1.cc"
 
@@ -50,7 +53,8 @@ class Sum;
 %token TOK_RPAREN "`)`"
 %token TOK_STAR "`*`"
 %token TOK_PLUS "`+`"
-%token TOK_COMMA "`,`"
+%token TOK_MINUS "`-`"
+%token TOK_SLASH "`/`"
 /* END GENERATED TOKEN DECLARATIONS */
 
 %token TOK_BOOL   "boolean literal"
@@ -61,9 +65,9 @@ class Sum;
 
 /* BEGIN NONTERMINAL TYPES */
 %type <Expression*> class_Expression
-%type <vector<Expression*>> array0_Expression__1
 %type <Expression*> class_Expression_p2
 %type <Expression*> class_Expression_p3
+%type <Expression*> class_Expression_p4
 /* END NONTERMINAL TYPES */
 
 %type <bool> TOK_BOOL
@@ -73,14 +77,14 @@ class Sum;
 
 %code {
 
-#include "example2.yacc.hh"
-#include "example2.h"
+#include "calculator1.yacc.hh"
+#include "calculator1.h"
 
-namespace example2 {
+namespace calculator1 {
 
 YYParser::symbol_type yylex(ParseDriver* parser);
 
-}  // namespace example2
+}  // namespace calculator1
 
 }
 
@@ -97,28 +101,34 @@ start
 
 /* BEGIN PRODUCTIONS */
 class_Expression
-  :  class_Expression TOK_PLUS class_Expression_p2 {
+  :  class_Expression TOK_MINUS class_Expression_p2 {
+      $$ = new Diff(@$, $1, $3); }  // Diff
+  |  class_Expression TOK_PLUS class_Expression_p2 {
       $$ = new Sum(@$, $1, $3); }  // Sum
   | class_Expression_p2 { $$ = $1; }
   ;
 class_Expression_p2
-  :  class_Expression_p2 TOK_STAR class_Expression_p3 {
-      $$ = new Product(@$, $1, $3); }  // Product
+  :  class_Expression_p2 TOK_SLASH class_Expression_p3 {
+      $$ = new Div(@$, $1, $3); }  // Div
+  |  class_Expression_p2 TOK_STAR class_Expression_p3 {
+      $$ = new Prod(@$, $1, $3); }  // Prod
+  |  class_Expression_p2 class_Expression_p3 {
+      $$ = new Prod(@$, $1, $2); }  // Prod
   | class_Expression_p3 { $$ = $1; }
   ;
 class_Expression_p3
+  :  TOK_MINUS class_Expression_p4 {
+      $$ = new Negate(@$, $2); }  // Negate
+  | class_Expression_p4 { $$ = $1; }
+  ;
+class_Expression_p4
   :  TOK_LPAREN class_Expression TOK_RPAREN { $$ = $2; }
-  |  TOK_IDENTIFIER TOK_LPAREN  array0_Expression__1 TOK_RPAREN {
-      $$ = new FunctionCall(@$, $1, $3); }  // FunctionCall
   | TOK_INT64 {
       $$ = new IntegerLiteral(@$, $1); }  // IntegerLiteral
   ;
 
-array0_Expression__1
-  : { $$ = vector<Expression*>(); }
-  | class_Expression { $$ = vector<Expression*>(); $$.emplace_back($1); }
-  | array0_Expression__1 TOK_COMMA class_Expression { $$ = $1; $$.emplace_back($3); }
-  ;
+
+
 
 
 
@@ -130,7 +140,7 @@ array0_Expression__1
 
 #include <sstream>
 
-namespace example2 {
+namespace calculator1 {
 
 using std::istream;
 using std::ostream;
@@ -144,7 +154,7 @@ Expression::Expression(ParseState parseState)
 }
 
 Expression* Expression::parse(istream& input, ostream& errors) {
-  return dynamic_cast<Expression*>(example2::parse(input, errors));
+  return dynamic_cast<Expression*>(calculator1::parse(input, errors));
 }
 void Expression::printMembers(ostream& out) {
 }
@@ -156,101 +166,135 @@ void Expression::bracketFormat(ostream& out, AstNode* self) {
   out << " ";
   out << ")";
 }
-FunctionCall::FunctionCall(ParseState parseState, identifier functionName, vector<Expression*> argList)
+Negate::Negate(ParseState parseState, Expression* arg)
     : Expression(parseState)
-    , functionName(functionName)
-    , argList(argList) {
+    , arg(arg) {
 }
 
-void FunctionCall::printMembers(ostream& out) {
+void Negate::printMembers(ostream& out) {
   Expression::printMembers(out);
 
-  out << " functionName:";
-  classpPrint(out, functionName);
-  out << " argList:";
-  classpPrint(out, argList);
+  out << " arg:";
+  classpPrint(out, arg);
 }
 
-void FunctionCall::format(ostream& out, int precedence) {
-  classpFormat(out, 0, functionName);
-  out << " ";
-  out << "(";
-  out << " ";
-  for (size_t i = 0; i < argList.size(); i++) {
-    if (i > 0) {
-      out << ",";
-    }
-    classpFormat(out, 0, argList[i]);
+void Negate::format(ostream& out, int precedence) {
+  if (precedence <= 3) {
+    out << "-";
+    out << " ";
+    classpFormat(out, 4, arg);
+  } else {
+    bracketFormat(out, this);
   }
-  out << " ";
-  out << ")";
 }
-Sum::Sum(ParseState parseState, Expression* val1, Expression* val2)
+Binop::Binop(ParseState parseState, Expression* arg1, Expression* arg2)
     : Expression(parseState)
-    , val1(val1)
-    , val2(val2) {
+    , arg1(arg1)
+    , arg2(arg2) {
+}
+
+void Binop::printMembers(ostream& out) {
+  Expression::printMembers(out);
+
+  out << " arg1:";
+  classpPrint(out, arg1);
+  out << " arg2:";
+  classpPrint(out, arg2);
+}
+Sum::Sum(ParseState parseState, Expression* arg1, Expression* arg2)
+    : Binop(parseState, arg1, arg2) {
 }
 
 void Sum::printMembers(ostream& out) {
-  Expression::printMembers(out);
+  Binop::printMembers(out);
 
-  out << " val1:";
-  classpPrint(out, val1);
-  out << " val2:";
-  classpPrint(out, val2);
 }
 
 void Sum::format(ostream& out, int precedence) {
   if (precedence <= 1) {
-    classpFormat(out, 1, val1);
+    classpFormat(out, 1, arg1);
     out << " ";
     out << "+";
     out << " ";
-    classpFormat(out, 2, val2);
+    classpFormat(out, 2, arg2);
   } else {
     bracketFormat(out, this);
   }
 }
-Product::Product(ParseState parseState, Expression* val1, Expression* val2)
-    : Expression(parseState)
-    , val1(val1)
-    , val2(val2) {
+Diff::Diff(ParseState parseState, Expression* arg1, Expression* arg2)
+    : Binop(parseState, arg1, arg2) {
 }
 
-void Product::printMembers(ostream& out) {
-  Expression::printMembers(out);
+void Diff::printMembers(ostream& out) {
+  Binop::printMembers(out);
 
-  out << " val1:";
-  classpPrint(out, val1);
-  out << " val2:";
-  classpPrint(out, val2);
 }
 
-void Product::format(ostream& out, int precedence) {
+void Diff::format(ostream& out, int precedence) {
+  if (precedence <= 1) {
+    classpFormat(out, 1, arg1);
+    out << " ";
+    out << "-";
+    out << " ";
+    classpFormat(out, 2, arg2);
+  } else {
+    bracketFormat(out, this);
+  }
+}
+Prod::Prod(ParseState parseState, Expression* arg1, Expression* arg2)
+    : Binop(parseState, arg1, arg2) {
+}
+
+void Prod::printMembers(ostream& out) {
+  Binop::printMembers(out);
+
+}
+
+void Prod::format(ostream& out, int precedence) {
   if (precedence <= 2) {
-    classpFormat(out, 2, val1);
+    classpFormat(out, 2, arg1);
     out << " ";
     out << "*";
     out << " ";
-    classpFormat(out, 3, val2);
+    classpFormat(out, 3, arg2);
   } else {
     bracketFormat(out, this);
   }
 }
-IntegerLiteral::IntegerLiteral(ParseState parseState, int val)
+Div::Div(ParseState parseState, Expression* arg1, Expression* arg2)
+    : Binop(parseState, arg1, arg2) {
+}
+
+void Div::printMembers(ostream& out) {
+  Binop::printMembers(out);
+
+}
+
+void Div::format(ostream& out, int precedence) {
+  if (precedence <= 2) {
+    classpFormat(out, 2, arg1);
+    out << " ";
+    out << "/";
+    out << " ";
+    classpFormat(out, 3, arg2);
+  } else {
+    bracketFormat(out, this);
+  }
+}
+IntegerLiteral::IntegerLiteral(ParseState parseState, int n)
     : Expression(parseState)
-    , val(val) {
+    , n(n) {
 }
 
 void IntegerLiteral::printMembers(ostream& out) {
   Expression::printMembers(out);
 
-  out << " val:";
-  classpPrint(out, val);
+  out << " n:";
+  classpPrint(out, n);
 }
 
 void IntegerLiteral::format(ostream& out, int precedence) {
-  classpFormat(out, 0, val);
+  classpFormat(out, 0, n);
 }
 /* END METHOD DEFINITIONS */
 
@@ -345,9 +389,10 @@ int ParseSample(const char* sample, const char* expected_result = kPrint) {
 int ParseSamples() {
   int num_errors = 0;
 /* BEGIN SAMPLES */
-  num_errors += ParseSample<Expression>(R"#A#(1+2)#A#", R"#A#((Sum val1:(IntegerLiteral val:1) val2:(IntegerLiteral val:2)))#A#");
-  num_errors += ParseSample<Expression>(R"#A#(1+2*(3+4))#A#", R"#A#((Sum val1:(IntegerLiteral val:1) val2:(Product val1:(IntegerLiteral val:2) val2:(Sum val1:(IntegerLiteral val:3) val2:(IntegerLiteral val:4)))))#A#");
-  num_errors += ParseSample<Expression>(R"#A#((1+2)+(3+4))#A#", R"#A#((Sum val1:(Sum val1:(IntegerLiteral val:1) val2:(IntegerLiteral val:2)) val2:(Sum val1:(IntegerLiteral val:3) val2:(IntegerLiteral val:4))))#A#");
+  num_errors += ParseSample<Expression>(R"#A#(4-1+-2*5)#A#", kPrint);
+  num_errors += ParseSample<Expression>(R"#A#(-(5*6))#A#", kPrint);
+  num_errors += ParseSample<Expression>(R"#A#(4-1+-2 5)#A#", kPrint);
+  num_errors += ParseSample<Expression>(R"#A#(-(5 6))#A#", kPrint);
 /* END SAMPLES */
   std::cout << "Errors: " << num_errors << "\n";
   return num_errors;
@@ -356,7 +401,7 @@ int ParseSamples() {
 #endif  // PARSER_TEST
 
 
-}  // namespace example2
+}  // namespace calculator1
 
 #ifdef PARSER_TEST
 
@@ -366,7 +411,7 @@ int ParseSamples() {
 using std::istream;
 using std::ifstream;
 
-const char usage[] = "usage: example2 [input-file | --samples]\n";
+const char usage[] = "usage: calculator1 [input-file | --samples]\n";
 
 int main(int argc, char** argv) {
   if (argc > 2) {
@@ -374,7 +419,7 @@ int main(int argc, char** argv) {
     exit(1);
   }
   if (argc == 2 && std::string(argv[1]) == "--samples") {
-    if (example2::ParseSamples() > 0) exit(1);
+    if (calculator1::ParseSamples() > 0) exit(1);
   } else {
     ifstream file;
     if (argc == 2) {
@@ -385,7 +430,7 @@ int main(int argc, char** argv) {
       }
     }
     istream& input = argc == 2 ? file : std::cin;
-    example2::ParseAndPrint(input, std::cout);
+    calculator1::ParseAndPrint(input, std::cout);
   }
   return 0;
 }
