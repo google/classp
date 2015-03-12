@@ -17,8 +17,8 @@ like in language form. Classp turns these class patterns into a parser and
 formatter for the AST.
 
 A Classp AST description is compiled by classp into C++, Bison, and Flex.
-The language is documented in the [language manual](https://docs.google.com/document/d/1hqtbPkKbA5janVVb0xEXg4n1nGKs3tCgijK2PFRCx2k/pub).
-The program itself is documented in the [user manual](https://docs.google.com/document/d/1Qq3R87a-_Aru8DXXVpxM35y5rWWwrJ1tpKoWs3y0o1U/pub).
+The language is documented in the [language manual](https://docs.google.com/document/d/1hqtbPkKbA5janVVb0xEXg4n1nGKs3tCgijK2PFRCx2k/edit?usp=sharing).
+The program itself is documented in the [user manual](https://docs.google.com/document/d/1Qq3R87a-_Aru8DXXVpxM35y5rWWwrJ1tpKoWs3y0o1U/edit?usp=sharing).
 
 #BUILDING AND TESTING
 The source code is in the src subdirectory. It runs on Linux and builds with Bison 3.02
