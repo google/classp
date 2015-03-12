@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Classp by google</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+
+      <header>
+        <h1>Classp</h1>
+        <p>a classier way to parse</p>
+      </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/google/classp" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/google/classp/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/google/classp/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
+      <section>
+        <h3>
+<a id="welcome-to-classp" class="anchor" href="#welcome-to-classp" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to Classp</h3>
+
+<p>Parser generators are a great help in writing parsers, but they all have one major drawback--they are based on grammars. So what's wrong with grammars? Well ... nothing as an expository tool. When you want to diagram a complex rule for deriving tree-like structures within a string of symbols, nothing beats a good old-fashioned grammar. But when you want to write a computer program to convert a string into the logical structure that it represents and then use that logical structure for further processing, then grammars are not ideal.</p>
+
+<p>There are a couple of problems with grammars as a computer parsing language. First, grammars describe the syntactic structure of a language rather than the logical structure. These two structures are often similar, but seldom identical, and converting the syntactic structure represented by the grammar into the logical structure that a programmer wants to work with can be tedious and error prone. Second, grammars do not fit in well with programming languages. They are a special formalism that have to be painfully welded together with a programming language to produce a working parser.</p>
+
+<p>In addition to these general problems with grammars, there is a more specific problem that goes with the restricted sorts of grammars offered in most parser-generator systems. These grammars are often less powerful than full context-free grammars and often cannot deal with ambiguity. Programmers have to modify the grammar to get around the problems, often leading to more awkwardness. There has been a lot of interest lately in using general parsing algorithms to avoid this issue, but these systems are still based on grammars with the weaknesses I described above.</p>
+
+<p>So how does Classp avoid these problems? Classp does not use a grammar. With Classp, you start with the abstract syntax tree or AST of a language. The AST represents the logical structure of the language, not the surface syntactic structure. The language for designing the AST uses common object-oriented design with inheritance. C++ and Java programmers should find it very familiar. Then you add to each class in the AST some special annotations called class patterns that describe how to <em>format</em> that class--how to write it out in the target language. Writing formatters is generally much simpler than writing parsers. Classp then inverts the formatter to give you a parser.</p>
+
+<h3>
+<a id="future" class="anchor" href="#future" aria-hidden="true"><span class="octicon octicon-link"></span></a>Future</h3>
+
+<p>Right now, Classp doesn't do much besides parsing and formatting, but it is intended to evolve into a general language processing system. Some future plans include:</p>
+
+<ol>
+<li><p>A translation feature: specify two (or more) sets of class patterns, different sets for different languages. Classp can generate automatic translations between the languages.</p></li>
+<li><p>Attribute evaluation: Attributes in Classp are associated with AST classes rather than with grammar productions. We believe that this will make attribute evaluation more powerful and easier to understand than attribute grammars.</p></li>
+<li><p>Logical constraints to guide parsing.</p></li>
+<li><p>A built in lexical analyzer.</p></li>
+</ol>
+
+<h3>
+<a id="status" class="anchor" href="#status" aria-hidden="true"><span class="octicon octicon-link"></span></a>Status</h3>
+
+<p>Classp is still in the demo phase of software development. It works for quite a few examples, but it has not been thoroughly tested and is lacking some feature that would be needed for real development work. It has only been built on an Ubuntu-based Linux.</p>
+
+<p>If you want to try it out then please download the system and read the README.md file for directions.</p>
+
+<h3>
+<a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
+
+<p>The original author of Classp is David Gudeman (<a href="https://github.com/david-gudeman" class="user-mention">@david-gudeman</a>). If you would like to discuss Classp or possibly contribute, you can write me at <a href="mailto:dgudeman@google.com">dgudeman@google.com</a>.</p>
+
+<p>Happy Parsing</p>
+      </section>
+      <footer>
+        <p>Project maintained by <a href="https://github.com/google">google</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
