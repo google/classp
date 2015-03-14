@@ -120,3 +120,6 @@ Essentially, this is still a demo system and not a real parsing tool.
 Avoid using precedence indicators on productions with array attributes. The
 grammars generated from this can cause the Bison-generated parsers to go
 into an infinite loop.
+
+This is not an official Google product (experimental or otherwise), it is just
+code that happens to be owned by Google.
