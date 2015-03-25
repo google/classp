@@ -26,16 +26,22 @@ or later, Flex 2.5.39 or later, and g++ 4.8.2.
 
 Cd to the src directory and type
 
+  ```shell
   make classp
+  ```
 
 This will create all intermediate and object files as well as the executable,
 classp, in the srce directory. To run tests of the code generation type
 
+  ```shell
   make tests
+  ````
 
 To have some tests actually run and execute sample parses type
 
+  ```shell
   make samples
+  ```
 
 #CLASSP FOR THE IMPATIENT
 After building Classp as described above, here is a quick example of using it. Suppose
