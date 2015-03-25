@@ -2,7 +2,7 @@ This directory contains an implementation of Classp written by David Gudeman
 (dgudeman@google.com or dave.gudeman@gmail.com).
 
 #INTRODUCTION
-The Classp language is a system for writing parsers without a writing a grammar.
+The Classp language is a system for writing parsers without writing a grammar.
 Grammars are designed to describe the surface structure of a language rather
 than the logical structure that the programmer really wants to work with.
 Grammars also make use of concepts that are not easily compatible with normal
